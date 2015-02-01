@@ -8,9 +8,7 @@
 /*-----------------------------------------------------------------------*/
 
 #include "diskio.h"		/* FatFs lower layer API */
-//#include "usbdisk.h"	/* Example: USB drive control */
-//#include "atadrive.h"	/* Example: ATA drive control */
-//#include "sdcard.h"		/* Example: MMC/SDC contorl */
+#include "sdmmc.h"
 
 /* Definitions of physical drive number for each media */
 #define ATA		0
@@ -26,10 +24,8 @@ DSTATUS disk_initialize (
 	BYTE pdrv				/* Physical drive nmuber (0..) */
 )
 {
-	DSTATUS stat;
-	int result;
 	sdmmc_sdcard_init();
-	return 0;
+	return RES_OK;
 }
 
 
@@ -42,9 +38,7 @@ DSTATUS disk_status (
 	BYTE pdrv		/* Physical drive nmuber (0..) */
 )
 {
-	DSTATUS stat;
-	return 0;
-	return STA_NOINIT;
+	return RES_OK; // Stubbed
 }
 
 
@@ -60,9 +54,6 @@ DRESULT disk_read (
 	UINT count		/* Number of sectors to read (1..128) */
 )
 {
-	DRESULT res;
-	int result;
-
 	if (sdmmc_sdcard_readsectors(sector,count,buff)) 
 		return RES_PARERR;
 
@@ -83,8 +74,6 @@ DRESULT disk_write (
 	UINT count			/* Number of sectors to write (1..128) */
 )
 {
-	DRESULT res;
-	int result;
 	if (sdmmc_sdcard_writesectors(sector,count,buff)) 
 		return RES_PARERR;
 
@@ -104,9 +93,6 @@ DRESULT disk_ioctl (
 	void *buff		/* Buffer to send/receive control data */
 )
 {
-	DRESULT res;
-	int result;
-
-	return RES_PARERR;
+    return RES_PARERR; // Stubbed
 }
 #endif

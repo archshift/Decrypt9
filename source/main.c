@@ -3,9 +3,9 @@
 #include <stdio.h>
 
 #include "common.h"
-
-#include "fs.h"
 #include "draw.h"
+#include "fs.h"
+#include "decryptor/padgen.h"
 
 int main()
 {
@@ -14,5 +14,7 @@ int main()
     InitFS();
 
     Debug("Padgen: %s", ncchPadgen() == 0 ? "succeeded" : "failed");
+
+    DeinitFS();
 	return 0;
 }

@@ -10,6 +10,11 @@ bool InitFS()
     return f_mount(&fs, "0:", 0) == FR_OK;
 }
 
+void DeinitFS()
+{
+    f_mount(NULL, "0:", 0);
+}
+
 bool FileOpen(const char* path, bool truncate)
 {
     unsigned flags = FA_READ | FA_WRITE;
@@ -21,7 +26,7 @@ bool FileOpen(const char* path, bool truncate)
 
 size_t FileRead(void* buf, size_t size, size_t foffset)
 {
-    u32 bytes_read = 0;
+    UINT bytes_read = 0;
     f_lseek(&file, foffset);
     f_read(&file, buf, size, &bytes_read);
     return bytes_read;
@@ -29,7 +34,7 @@ size_t FileRead(void* buf, size_t size, size_t foffset)
 
 size_t FileWrite(void* buf, size_t size, size_t foffset)
 {
-    u32 bytes_written = 0;
+    UINT bytes_written = 0;
     f_lseek(&file, foffset);
     f_write(&file, buf, size, &bytes_written);
     return bytes_written;
@@ -40,7 +45,7 @@ size_t FileGetSize()
     return f_size(&file);
 }
 
-bool FileClose()
+void FileClose()
 {
     f_close(&file);
 }

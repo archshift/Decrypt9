@@ -1,5 +1,6 @@
 Launcher.dat
-payload.bin
-*.o
+Decrypt9.bin
+Decrypt9.elf
+/build
 
 .DS_Store

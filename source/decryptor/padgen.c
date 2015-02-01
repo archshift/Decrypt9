@@ -7,7 +7,7 @@
 
 u32 ncchPadgen()
 {
-	u32 bytesRead;
+	size_t bytesRead;
 	u32 result;
 	
 	struct ncch_info *info = (struct ncch_info *)0x20316000;
@@ -67,7 +67,7 @@ u32 ncchPadgen()
 
 u32 sdPadgen()
 {
-	u32 bytesRead;
+	size_t bytesRead;
 	u32 result;
 	
 	struct sd_info *info = (struct sd_info *)0x20316000;
@@ -171,7 +171,7 @@ u32 createPad(struct pad_info *info)
 {
 #define BUFFER_ADDR ((volatile uint8_t*)0x21000000)
 #define BLOCK_SIZE  (1*1024*1024)
-    u32 bytesWritten;
+    size_t bytesWritten;
 
     if (!FileOpen(info->filename, true))
         return 1;
