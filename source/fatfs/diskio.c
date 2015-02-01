@@ -7,13 +7,13 @@
 /* storage control module to the FatFs module with a defined API.        */
 /*-----------------------------------------------------------------------*/
 
-#include "diskio.h"		/* FatFs lower layer API */
+#include "diskio.h"     /* FatFs lower layer API */
 #include "sdmmc.h"
 
 /* Definitions of physical drive number for each media */
-#define ATA		0
-#define MMC		1
-#define USB		2
+#define ATA     0
+#define MMC     1
+#define USB     2
 
 
 /*-----------------------------------------------------------------------*/
@@ -21,11 +21,11 @@
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_initialize (
-	BYTE pdrv				/* Physical drive nmuber (0..) */
+    BYTE pdrv               /* Physical drive nmuber (0..) */
 )
 {
-	sdmmc_sdcard_init();
-	return RES_OK;
+    sdmmc_sdcard_init();
+    return RES_OK;
 }
 
 
@@ -35,10 +35,10 @@ DSTATUS disk_initialize (
 /*-----------------------------------------------------------------------*/
 
 DSTATUS disk_status (
-	BYTE pdrv		/* Physical drive nmuber (0..) */
+    BYTE pdrv       /* Physical drive nmuber (0..) */
 )
 {
-	return RES_OK; // Stubbed
+    return RES_OK; // Stubbed
 }
 
 
@@ -48,16 +48,16 @@ DSTATUS disk_status (
 /*-----------------------------------------------------------------------*/
 
 DRESULT disk_read (
-	BYTE pdrv,		/* Physical drive nmuber (0..) */
-	BYTE *buff,		/* Data buffer to store read data */
-	DWORD sector,	/* Sector address (LBA) */
-	UINT count		/* Number of sectors to read (1..128) */
+    BYTE pdrv,      /* Physical drive nmuber (0..) */
+    BYTE *buff,     /* Data buffer to store read data */
+    DWORD sector,   /* Sector address (LBA) */
+    UINT count      /* Number of sectors to read (1..128) */
 )
 {
-	if (sdmmc_sdcard_readsectors(sector,count,buff)) 
-		return RES_PARERR;
+    if (sdmmc_sdcard_readsectors(sector,count,buff))
+        return RES_PARERR;
 
-	return RES_OK;
+    return RES_OK;
 }
 
 
@@ -68,16 +68,16 @@ DRESULT disk_read (
 
 #if _USE_WRITE
 DRESULT disk_write (
-	BYTE pdrv,			/* Physical drive nmuber (0..) */
-	const BYTE *buff,	/* Data to be written */
-	DWORD sector,		/* Sector address (LBA) */
-	UINT count			/* Number of sectors to write (1..128) */
+    BYTE pdrv,          /* Physical drive nmuber (0..) */
+    const BYTE *buff,   /* Data to be written */
+    DWORD sector,       /* Sector address (LBA) */
+    UINT count          /* Number of sectors to write (1..128) */
 )
 {
-	if (sdmmc_sdcard_writesectors(sector,count,buff)) 
-		return RES_PARERR;
+    if (sdmmc_sdcard_writesectors(sector,count,buff))
+        return RES_PARERR;
 
-	return RES_OK;
+    return RES_OK;
 }
 #endif
 
@@ -88,9 +88,9 @@ DRESULT disk_write (
 
 #if _USE_IOCTL
 DRESULT disk_ioctl (
-	BYTE pdrv,		/* Physical drive nmuber (0..) */
-	BYTE cmd,		/* Control code */
-	void *buff		/* Buffer to send/receive control data */
+    BYTE pdrv,      /* Physical drive nmuber (0..) */
+    BYTE cmd,       /* Control code */
+    void *buff      /* Buffer to send/receive control data */
 )
 {
     return RES_PARERR; // Stubbed

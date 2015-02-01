@@ -12,8 +12,12 @@
 #define u32 uint32_t
 #define u64 uint64_t
 
-inline int maxi(int a, int b) { return a > b ? a : b; }
-inline int mini(int a, int b) { return a < b ? a : b; }
+inline int maxi(int a, int b) {
+    return a > b ? a : b;
+}
+inline int mini(int a, int b) {
+    return a < b ? a : b;
+}
 
 inline char* strupper(const char* str) {
     char* buffer = (char*)malloc(strlen(str) + 1);

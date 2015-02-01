@@ -9,12 +9,12 @@
 
 int main()
 {
-	ClearScreen(TOP_SCREEN, RGB(0, 255, 0));
+    ClearScreen(TOP_SCREEN, RGB(0, 255, 0));
 
     InitFS();
 
     Debug("Padgen: %s", ncchPadgen() == 0 ? "succeeded" : "failed");
 
     DeinitFS();
-	return 0;
+    return 0;
 }
