@@ -1,0 +1,5 @@
+Launcher.dat
+payload.bin
+*.o
+
+.DS_Store
