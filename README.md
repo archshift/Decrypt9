@@ -15,7 +15,7 @@ Place `ncchinfo.bin` and `slot0x25KeyX.bin` on your SD card, and run the decrypt
 
 Roxas75 for the method of ARM9 code injection
 
-Kane49 for the fatfs code
+Cha(N), Kane49, and all other FatFS contributors for FatFS
 
 Normmatt for `sdmc.s` as well as project infrastructure (Makefile, linker setup, etc)
 
