@@ -12,20 +12,6 @@ u32 ncchPadgen()
 
     struct ncch_info *info = (struct ncch_info *)0x20316000;
 
-    u8 slot0x25KeyX[16] = {0};
-
-    if (!FileOpen("/slot0x25KeyX.bin", false)) {
-        Debug("Could not open slot0x25KeyX.bin!");
-        return 1;
-    }
-    bytesRead = FileRead(&slot0x25KeyX, 16, 0);
-    FileClose();
-    if (bytesRead != 16) {
-        Debug("slot0x25KeyX.bin is too small!");
-        return 1;
-    }
-    setup_aeskeyX(0x25, slot0x25KeyX);
-
     Debug("Opening ncchinfo.bin ...");
     if (!FileOpen("/ncchinfo.bin", false)) {
         Debug("Could not open ncchinfo.bin!");
