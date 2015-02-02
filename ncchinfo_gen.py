@@ -238,10 +238,10 @@ def genOutName(titleId, partitionName, sectionName):
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:
-		print 'usage: ctrKeyGen.py files..'
+		print 'usage: ncchinfo_gen.py files..'
 		print '  Supports parsing both CCI(.3ds) and NCCH files.'
 		print '  Wildcards are supported'
-		print '  Example: ctrKeyGen.py *.ncch SM3DL.3ds'
+		print '  Example: ncchinfo_gen.py *.ncch SM3DL.3ds'
 		sys.exit()
 	
 	inpFiles = []
@@ -279,7 +279,7 @@ if __name__ == "__main__":
 		if result:
 			entries += result[0]
 			data = data + result[1]
-	
+    
 	dndFix = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'ncchinfo.bin') #Fix drag'n'drop
 	with open(dndFix, 'wb') as fh:
 		fh.write(struct.pack('<IIII',0xFFFFFFFF, 0xF0000003, entries, 0))
