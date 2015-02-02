@@ -12,6 +12,22 @@ u32 ncchPadgen()
 
     struct ncch_info *info = (struct ncch_info *)0x20316000;
 
+    if (FileOpen("/slot0x25KeyX.bin", false)) {
+        u8 slot0x25KeyX[16] = {0};
+        Debug("Opening slot0x25KeyX.bin ...");
+        
+        bytesRead = FileRead(&slot0x25KeyX, 16, 0);
+        FileClose();
+        if (bytesRead != 16) {
+            Debug("slot0x25KeyX.bin is too small!");
+            return 1;
+        }
+        setup_aeskeyX(0x25, slot0x25KeyX);
+    } else {
+        Debug("Warning, not using slot0x25KeyX.bin");
+        Debug("If you're on a firmware less than 7.x, 7.x games will not decrypt properly!");
+    }
+
     Debug("Opening ncchinfo.bin ...");
     if (!FileOpen("/ncchinfo.bin", false)) {
         Debug("Could not open ncchinfo.bin!");
