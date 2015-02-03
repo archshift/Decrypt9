@@ -5,12 +5,12 @@
 #include "decryptor/padgen.h"
 #include "decryptor/crypto.h"
 
-u32 ncchPadgen()
+u32 NcchPadgen()
 {
     size_t bytesRead;
     u32 result;
 
-    struct ncch_info *info = (struct ncch_info *)0x20316000;
+    NcchInfo *info = (NcchInfo*)0x20316000;
 
     if (FileOpen("/slot0x25KeyX.bin", false)) {
         u8 slot0x25KeyX[16] = {0};
@@ -39,7 +39,7 @@ u32 ncchPadgen()
         Debug("Too many/few entries, or wrong version ncchinfo.bin");
         return 0;
     }
-    bytesRead = FileRead(info->entries, info->n_entries*sizeof(struct ncch_info_entry), 16);
+    bytesRead = FileRead(info->entries, info->n_entries * sizeof(NcchInfoEntry), 16);
     FileClose();
 
     Debug("Number of entries: %i", info->n_entries);
@@ -47,7 +47,7 @@ u32 ncchPadgen()
     for(u32 i = 0; i < info->n_entries; i++) {
         Debug("Creating pad number: %i  size (MB): %i", i+1, info->entries[i].size_mb);
 
-        struct pad_info padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb};
+        PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
         memcpy(padInfo.keyY, info->entries[i].keyY, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 112);
@@ -57,7 +57,7 @@ u32 ncchPadgen()
         else
             padInfo.keyslot = 0x2C;
 
-        result = createPad(&padInfo);
+        result = CreatePad(&padInfo);
         if (!result)
             Debug("Done!");
         else
@@ -67,12 +67,12 @@ u32 ncchPadgen()
     return 0;
 }
 
-u32 sdPadgen()
+u32 SdPadgen()
 {
     size_t bytesRead;
     u32 result;
 
-    struct sd_info *info = (struct sd_info *)0x20316000;
+    SdInfo *info = (SdInfo*)0x20316000;
 
     u8 movable_seed[0x120] = {0};
 
@@ -108,17 +108,17 @@ u32 sdPadgen()
 
     Debug("Number of entries: %i", info->n_entries);
 
-    bytesRead = FileRead(info->entries, info->n_entries*sizeof(struct sd_info_entry), 4);
+    bytesRead = FileRead(info->entries, info->n_entries * sizeof(SdInfoEntry), 4);
     FileClose();
 
     for(u32 i = 0; i < info->n_entries; i++) {
         Debug ("Creating pad number: %i size (MB): %i", i+1, info->entries[i].size_mb);
 
-        struct pad_info padInfo = {.keyslot = 0x34, .setKeyY = 0, .size_mb = info->entries[i].size_mb};
+        PadInfo padInfo = {.keyslot = 0x34, .setKeyY = 0, .size_mb = info->entries[i].size_mb};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 180);
 
-        result = createPad(&padInfo);
+        result = CreatePad(&padInfo);
         if (!result)
             Debug("Done!");
         else
@@ -161,15 +161,9 @@ u32 sdPadgen()
     }
 }*/
 
-inline u32 swap_uint32(u32 val)
-{
-    val = ((val << 8) & 0xFF00FF00 ) | ((val >> 8) & 0xFF00FF );
-    return (val << 16) | (val >> 16);
-}
-
 static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
 
-u32 createPad(struct pad_info *info)
+u32 CreatePad(PadInfo *info)
 {
 #define BUFFER_ADDR ((volatile uint8_t*)0x21000000)
 #define BLOCK_SIZE  (1*1024*1024)

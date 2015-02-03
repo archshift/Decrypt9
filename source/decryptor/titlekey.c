@@ -15,7 +15,7 @@ static const u8 common_keyy[6][16] = {
 
 u32 DecryptTitlekeys(void)
 {
-	struct enckeys_info *info = (struct enckeys_info *)((void *)0x20316000);
+	EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 	
 	Debug("Opening encTitleKeys.bin ...");
 	if(!FileOpen("/encTitleKeys.bin", false))
@@ -33,7 +33,7 @@ u32 DecryptTitlekeys(void)
 	
 	Debug("Number of entries: %i", info->n_entries);
 	
-	FileRead(info->entries, info->n_entries*sizeof(struct title_key_entry), 16);
+	FileRead(info->entries, info->n_entries * sizeof(TitleKeyEntry), 16);
 	FileClose();
 	
 	Debug("Decrypting Title Keys...");
@@ -54,7 +54,7 @@ u32 DecryptTitlekeys(void)
 	if(!FileOpen("/decTitleKeys.bin", true))
 		return 1;
 
-    FileWrite(info, info->n_entries*sizeof(struct title_key_entry)+16, 0);
+    FileWrite(info, info->n_entries * sizeof(TitleKeyEntry)+16, 0);
 	FileClose();
 	
 	Debug("Done!");

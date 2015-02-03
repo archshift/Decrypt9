@@ -4,48 +4,48 @@
 
 #define MAXENTRIES 1024
 
-struct sd_info_entry {
-    u8 CTR[16];
-    u32 size_mb;
+typedef struct {
+    u8   CTR[16];
+    u32  size_mb;
     char filename[180];
-} __attribute__((packed));
+} __attribute__((packed)) SdInfoEntry;
 
-struct sd_info {
+typedef struct {
     u32 n_entries;
-    struct sd_info_entry entries[MAXENTRIES];
-} __attribute__((packed, aligned(16)));
+    SdInfoEntry entries[MAXENTRIES];
+} __attribute__((packed, aligned(16))) SdInfo;
 
 
-struct ncch_info_entry {
-    u8  CTR[16];
-    u8  keyY[16];
-    u32 size_mb;
-    u8  reserved[8];
-    u32 uses7xCrypto;
+typedef struct {
+    u8   CTR[16];
+    u8   keyY[16];
+    u32  size_mb;
+    u8   reserved[8];
+    u32  uses7xCrypto;
     char filename[112];
-} __attribute__((packed));
+} __attribute__((packed)) NcchInfoEntry;
 
-struct ncch_info {
+typedef struct {
     u32 padding;
     u32 ncch_info_version;
     u32 n_entries;
     u8  reserved[4];
-    struct ncch_info_entry entries[MAXENTRIES];
-} __attribute__((packed, aligned(16)));
+    NcchInfoEntry entries[MAXENTRIES];
+} __attribute__((packed, aligned(16))) NcchInfo;
 
 
-struct pad_info {
-    u32 keyslot;
-    u32 setKeyY;
-    u8 CTR[16];
-    u8  keyY[16];
-    u32 size_mb;
+typedef struct {
+    u32  keyslot;
+    u32  setKeyY;
+    u8   CTR[16];
+    u8   keyY[16];
+    u32  size_mb;
     char filename[180];
-} __attribute__((packed, aligned(16)));
+} __attribute__((packed, aligned(16))) PadInfo;
 
 
-u32 ncchPadgen(void);
-u32 sdPadgen(void);
-u32 nandPadgen(void);
+u32 NcchPadgen(void);
+u32 SdPadgen(void);
+//u32 NandPadgen(void);
 
-u32 createPad(struct pad_info *info);
+u32 CreatePad(PadInfo *info);

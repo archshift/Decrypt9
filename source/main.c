@@ -7,6 +7,7 @@
 #include "fs.h"
 #include "hid.h"
 #include "decryptor/padgen.h"
+#include "decryptor/titlekey.h"
 
 void ClearTop()
 {
@@ -26,15 +27,15 @@ int main()
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
             ClearTop();
-            Debug("NCCH Padgen: %s!", ncchPadgen() == 0 ? "succeeded" : "failed");
+            Debug("NCCH Padgen: %s!", NcchPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_B) {
             ClearTop();
-            Debug("SD Padgen: %s!", sdPadgen() == 0 ? "succeeded" : "failed");
+            Debug("SD Padgen: %s!", SdPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_X) {
             ClearTop();
-            Debug("Titlekey Decryption: %s!", ncchPadgen() == 0 ? "succeeded" : "failed");
+            Debug("Titlekey Decryption: %s!", DecryptTitlekeys() == 0 ? "succeeded" : "failed");
             break;
         }
     }
