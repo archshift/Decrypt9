@@ -20,11 +20,21 @@ int main()
     InitFS();
 
     Debug("A: NCCH Padgen");
+    Debug("B: SD Padgen (untested)");
+    Debug("X: Titlekey Decryption (untested)");
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
             ClearTop();
-            Debug("Padgen: %s", ncchPadgen() == 0 ? "succeeded" : "failed");
+            Debug("NCCH Padgen: %s!", ncchPadgen() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_B) {
+            ClearTop();
+            Debug("SD Padgen: %s!", sdPadgen() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_X) {
+            ClearTop();
+            Debug("Titlekey Decryption: %s!", ncchPadgen() == 0 ? "succeeded" : "failed");
             break;
         }
     }

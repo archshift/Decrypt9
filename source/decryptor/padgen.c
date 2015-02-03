@@ -186,7 +186,6 @@ u32 createPad(struct pad_info *info)
     memcpy(ctr, info->CTR, 16);
 
     u32 size_bytes = info->size_mb*1024*1024;
-    u32 size_100 = size_bytes/100;
     u32 seekpos = 0;
     for (u32 i = 0; i < size_bytes; i += BLOCK_SIZE) {
         u32 j;
