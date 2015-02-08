@@ -18,7 +18,7 @@ u32 DecryptTitlekeys(void)
 	EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 	
 	Debug("Opening encTitleKeys.bin ...");
-	if(!FileOpen("/encTitleKeys.bin", false))
+	if(!FileOpen("/encTitleKeys.bin"))
 	{
 		Debug("Could not open encTitleKeys.bin!");
 		return 1;
@@ -51,7 +51,7 @@ u32 DecryptTitlekeys(void)
 		aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CBC_DECRYPT_MODE);
 	}
 
-	if(!FileOpen("/decTitleKeys.bin", true))
+	if(!FileCreate("/decTitleKeys.bin", true))
 		return 1;
 
     FileWrite(info, info->n_entries * sizeof(TitleKeyEntry)+16, 0);

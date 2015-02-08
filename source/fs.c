@@ -15,7 +15,15 @@ void DeinitFS()
     f_mount(NULL, "0:", 0);
 }
 
-bool FileOpen(const char* path, bool truncate)
+bool FileOpen(const char* path)
+{
+    unsigned flags = FA_READ | FA_WRITE | FA_OPEN_EXISTING;
+    bool ret = (f_open(&file, path, flags) == FR_OK);
+    f_lseek(&file, 0);
+    return ret;
+}
+
+bool FileCreate(const char* path, bool truncate)
 {
     unsigned flags = FA_READ | FA_WRITE;
     flags |= truncate ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS;

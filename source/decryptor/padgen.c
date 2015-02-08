@@ -12,7 +12,7 @@ u32 NcchPadgen()
 
     NcchInfo *info = (NcchInfo*)0x20316000;
 
-    if (FileOpen("/slot0x25KeyX.bin", false)) {
+    if (FileOpen("/slot0x25KeyX.bin")) {
         u8 slot0x25KeyX[16] = {0};
         Debug("Opening slot0x25KeyX.bin ...");
         
@@ -29,7 +29,7 @@ u32 NcchPadgen()
     }
 
     Debug("Opening ncchinfo.bin ...");
-    if (!FileOpen("/ncchinfo.bin", false)) {
+    if (!FileOpen("/ncchinfo.bin")) {
         Debug("Could not open ncchinfo.bin!");
         return 1;
     }
@@ -77,7 +77,7 @@ u32 SdPadgen()
     u8 movable_seed[0x120] = {0};
 
     // Load console 0x34 keyY from movable.sed if present on SD card
-    if (FileOpen("/movable.sed", false)) {
+    if (FileOpen("/movable.sed")) {
         Debug("Loading custom movable.sed");
         bytesRead = FileRead(&movable_seed, 0x120, 0);
         FileClose();
@@ -95,7 +95,7 @@ u32 SdPadgen()
     }
 
     Debug("Opening SDinfo.bin ...");
-    if (!FileOpen("/SDinfo.bin", false)) {
+    if (!FileOpen("/SDinfo.bin")) {
         Debug("Could not open SDinfo.bin!");
         return 1;
     }
@@ -169,7 +169,7 @@ u32 CreatePad(PadInfo *info)
 #define BLOCK_SIZE  (1*1024*1024)
     size_t bytesWritten;
 
-    if (!FileOpen(info->filename, true))
+    if (!FileCreate(info->filename, true))
         return 1;
 
     if(info->setKeyY)
