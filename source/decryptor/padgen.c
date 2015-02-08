@@ -25,7 +25,7 @@ u32 NcchPadgen()
         setup_aeskeyX(0x25, slot0x25KeyX);
     } else {
         Debug("Warning, not using slot0x25KeyX.bin");
-        Debug("If you're on a firmware less than 7.x, 7.x games will not decrypt properly!");
+        Debug("7.x game decryption will fail on less than 7.x!");
     }
 
     Debug("Opening ncchinfo.bin ...");
