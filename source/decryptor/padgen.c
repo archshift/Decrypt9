@@ -193,7 +193,6 @@ u32 CreatePad(PadInfo *info)
         seekpos += j;
         if(bytesWritten != j)
         {
-            current_y = 50;
             Debug("ERROR, SD card may be full.");
             FileClose();
             return 1;
