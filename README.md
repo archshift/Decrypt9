@@ -1,4 +1,6 @@
-# Xorpad9
+# Decrypt9
+[![Build Status](https://travis-ci.org/archshift/Decrypt9.svg?branch=master)](https://travis-ci.org/archshift/Decrypt9)
+
 ### Generating Xorpads for encrypted games using browserhax
 
 You can use http://dukesrg.no-ip.org/3ds/go to load the Launcher.dat on your 3DS. This should work on almost any firmware version below 9.3.
