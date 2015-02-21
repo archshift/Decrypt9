@@ -23,6 +23,7 @@ int main()
     Debug("A: NCCH Padgen");
     Debug("B: SD Padgen (untested)");
     Debug("X: Titlekey Decryption (untested)");
+    Debug("X: NAND Padgen");
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
@@ -36,6 +37,10 @@ int main()
         } else if (pad_state & BUTTON_X) {
             ClearTop();
             Debug("Titlekey Decryption: %s!", DecryptTitlekeys() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_Y) {
+            ClearTop();
+            Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
             break;
         }
     }
