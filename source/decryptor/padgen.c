@@ -190,7 +190,6 @@ u32 CreatePad(PadInfo *info)
             add_ctr(ctr, 1);
         }
 
-        DrawStringF(SCREEN_HEIGHT-43, 1, "    ");
         DrawStringF(SCREEN_HEIGHT-43, 1, "%i%%", (i+j)/size_100);
         bytesWritten = FileWrite((void*)BUFFER_ADDR, j, seekpos);
         seekpos += j;
