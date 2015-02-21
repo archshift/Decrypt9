@@ -166,7 +166,7 @@ static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
 u32 CreatePad(PadInfo *info)
 {
 #define BUFFER_ADDR ((volatile uint8_t*)0x21000000)
-#define BLOCK_SIZE  (1*1024*1024)
+#define BLOCK_SIZE  (4*1024*1024)
     size_t bytesWritten;
 
     if (!FileCreate(info->filename, true))
