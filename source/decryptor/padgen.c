@@ -150,13 +150,10 @@ u32 NandPadgen()
     memcpy(padInfo.CTR, ctr, 16);
 
     u32 result = CreatePad(&padInfo);
-    if(result == 0)
-    {
+    if(result == 0) {
         Debug("Done!");
         return 0;
-    }
-    else
-    {
+    } else {
         return 1;
     }
 }
