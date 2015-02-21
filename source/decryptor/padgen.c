@@ -180,6 +180,7 @@ u32 CreatePad(PadInfo *info)
     memcpy(ctr, info->CTR, 16);
 
     u32 size_bytes = info->size_mb*1024*1024;
+    u32 size_100 = size_bytes/100;
     u32 seekpos = 0;
     for (u32 i = 0; i < size_bytes; i += BLOCK_SIZE) {
         u32 j;
@@ -189,6 +190,8 @@ u32 CreatePad(PadInfo *info)
             add_ctr(ctr, 1);
         }
 
+        DrawStringF(SCREEN_HEIGHT-43, 1, "    ");
+        DrawStringF(SCREEN_HEIGHT-43, 1, "%i%%", (i+j)/size_100);
         bytesWritten = FileWrite((void*)BUFFER_ADDR, j, seekpos);
         seekpos += j;
         if(bytesWritten != j)
@@ -199,7 +202,7 @@ u32 CreatePad(PadInfo *info)
         }
     }
 
-//    draw_fillrect(SCREEN_TOP_W-33, 1, 32, 8, BLACK);
+    DrawStringF(SCREEN_HEIGHT-43, 1, "    ");
     FileClose();
     return 0;
 }
