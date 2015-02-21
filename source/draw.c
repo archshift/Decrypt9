@@ -61,6 +61,19 @@ void DrawString(unsigned char *screen, const char *str, int x, int y, int color,
     }
 }
 
+void DrawStringF(int x, int y, const char *format, ...)
+{
+    char* str;
+    va_list va;
+
+    va_start(va, format);
+    vasprintf(&str, format, va);
+    va_end(va);
+
+    DrawString(TOP_SCREEN, str, x, y, RGB(0, 0, 0), RGB(255, 255, 255));
+    free(str);
+}
+
 void DrawHex(unsigned char *screen, unsigned int hex, int x, int y, int color, int bgcolor)
 {
     int i;

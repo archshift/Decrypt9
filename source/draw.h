@@ -18,6 +18,7 @@ void ClearScreen(unsigned char *screen, int color);
 void DrawCharacter(unsigned char *screen, int character, int x, int y, int color, int bgcolor);
 void DrawHex(unsigned char *screen, unsigned int hex, int x, int y, int color, int bgcolor);
 void DrawString(unsigned char *screen, const char *str, int x, int y, int color, int bgcolor);
+void DrawStringF(int x, int y, const char *format, ...);
 void DrawHexWithName(unsigned char *screen, const char *str, unsigned int hex, int x, int y, int color, int bgcolor);
 
 void Debug(const char *format, ...);
