@@ -18,6 +18,6 @@ env:
 after_success:
   - sudo apt-get -qq install lftp p7zip-full
   - ARCHIVE_NAME="`git show -s --format='%h-%f' | cut -c1-111`.7z"
-  - 7z a archive Launcher.dat
+  - 7z a archive README.md Launcher.dat scripts/*.py
   - mv archive.7z "$ARCHIVE_NAME"
   - lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/' '$ARCHIVE_NAME'"
