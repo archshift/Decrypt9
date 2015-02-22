@@ -45,7 +45,7 @@ u32 NcchPadgen()
     Debug("Number of entries: %i", info->n_entries);
 
     for(u32 i = 0; i < info->n_entries; i++) {
-        Debug("Creating pad number: %i  size (MB): %i", i+1, info->entries[i].size_mb);
+        Debug("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
         PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
@@ -112,7 +112,7 @@ u32 SdPadgen()
     FileClose();
 
     for(u32 i = 0; i < info->n_entries; i++) {
-        Debug ("Creating pad number: %i size (MB): %i", i+1, info->entries[i].size_mb);
+        Debug ("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
         PadInfo padInfo = {.keyslot = 0x34, .setKeyY = 0, .size_mb = info->entries[i].size_mb};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
@@ -170,21 +170,18 @@ u32 NandPadgen()
     }
     add_ctr(ctr, 0xB93000); //The CTR stored in memory would theoretically be for NAND block 0, so we need to increment it some.
 
-    Debug("Creating NAND FAT16 xorpad.  size (MB): 760");
-    Debug("Filename: sdmc:/nand.fat16.xorpad");
+    Debug("Creating NAND FAT16 xorpad. Size (MB): 760");
+    Debug("Filename: nand.fat16.xorpad");
 
     PadInfo padInfo = {.keyslot = 0x4, .setKeyY = 0, .size_mb = 760, .filename = "/nand.fat16.xorpad"};
     //It's actually around 758MB in size. But meh, I'll just round up a bit.
     memcpy(padInfo.CTR, ctr, 16);
 
     u32 result = CreatePad(&padInfo);
-    if(result == 0)
-    {
+    if(result == 0) {
         Debug("Done!");
         return 0;
-    }
-    else
-    {
+    } else {
         return 1;
     }
 }
@@ -218,7 +215,7 @@ u32 CreatePad(PadInfo *info)
             add_ctr(ctr, 1);
         }
 
-        DrawStringF(SCREEN_HEIGHT-43, 1, "%i%%", (i+j)/size_100);
+        DrawStringF(SCREEN_HEIGHT-40, SCREEN_WIDTH-20, "%i%%", (i+j)/size_100);
         bytesWritten = FileWrite((void*)BUFFER_ADDR, j, seekpos);
         seekpos += j;
         if(bytesWritten != j)
@@ -229,7 +226,7 @@ u32 CreatePad(PadInfo *info)
         }
     }
 
-    DrawStringF(SCREEN_HEIGHT-43, 1, "    ");
+    DrawStringF(SCREEN_HEIGHT-40, SCREEN_WIDTH-20, "    ");
     FileClose();
     return 0;
 }
