@@ -130,15 +130,38 @@ u32 SdPadgen()
 
 u32 NandPadgen()
 {
-    //Just trying to make sure the data we're looking for is where we think it is.
-    //Should use some sort of memory scanning for it instead of hardcoding the address, though.
-    if (*(u32*)0x080D794C != 0x5C980)
+    //Use memory know to start scanning.
+    //If not in t Should use some sort of memory scanning for it instead of hardcoding the address, though.
+    u32 ctrStart=0;
+    u32 listCtrStart[] = {0x080D7CAC, 0x080D748C, 0x080D740C, 0x080D794C};
+    char* listSystem[] = {"4.x", "6.x", "7.x", "9.x"};
+    u32 lenListCtrStart = sizeof(listCtrStart)/sizeof(u32);
+    for(u32 c=0; c < lenListCtrStart; c++){
+        if(*(u32*)listCtrStart[c] == 0x5C980){
+            ctrStart = listCtrStart[c] + 0x30;
+            Debug("System version %s", listSystem[c]);
+            break;
+        }
+    }
+
+    //If value not in previous list start memory scanning (test range)
+    if (ctrStart == 0){
+        for(u32 c=0x080D7FFF; c > 0x080D7000; c--){
+            if(*(u32*)c == 0x5C980){
+                ctrStart = c + 0x30;
+                Debug("CTR Start 0x%08X", ctrStart);
+                break;
+            }
+        }
+    }
+
+    if (ctrStart == 0)
         return 1;
 
     u8 ctr[16] = {0x0};
     u32 i = 0;
-    for(i = 0; i < 16; i++) {
-        ctr[i] = *((u8*)(0x080D797C+(15-i))); //The CTR is stored backwards in memory.
+    for(i = 0; i < 16; i++){
+        ctr[i] = *((u8*)(ctrStart+(15-i))); //The CTR is stored backwards in memory.
     }
     add_ctr(ctr, 0xB93000); //The CTR stored in memory would theoretically be for NAND block 0, so we need to increment it some.
 
