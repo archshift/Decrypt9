@@ -16,8 +16,11 @@ env:
     secure: "QeQ3FDs8vOcB7+TJBPIszTPo6EuYOTcqTlC15fAXTHLLnGsY36ySSMKXKq9aV5mqJr9t92WGY169fAW35vg9wwQAx09A2EIEkaqLysozkNxaR9LralgwEEAXXJP2lD5NvJ0n13PMPloGyDCnjBRUjJ+WdDz5H6F329PbItKo5uE="
 
 after_success:
-  - sudo apt-get -qq install lftp p7zip-full
-  - ARCHIVE_NAME="`git show -s --format='%h-%f' | cut -c1-111`.7z"
-  - 7z a archive README.md Launcher.dat scripts/*.py
-  - mv archive.7z "$ARCHIVE_NAME"
-  - lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/' '$ARCHIVE_NAME'"
+  - >
+    if [ "$TRAVIS_BRANCH" == "master" ]; then
+        sudo apt-get -qq install lftp p7zip-full
+        ARCHIVE_NAME="`git show -s --format='%h-%f' | cut -c1-111`.7z"
+        7z a archive README.md Launcher.dat scripts/*.py
+        mv archive.7z "$ARCHIVE_NAME"
+        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/' '$ARCHIVE_NAME'"
+    fi
