@@ -23,7 +23,7 @@ int main()
     Debug("A: NCCH Padgen");
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
-    Debug("Y: NAND Padgen (untested in 5.x, 8.x)");
+    Debug("Y: NAND Padgen");
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
