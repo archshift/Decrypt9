@@ -133,8 +133,8 @@ u32 NandPadgen()
     //Use memory know to start scanning.
     //If not in t Should use some sort of memory scanning for it instead of hardcoding the address, though.
     u32 ctrStart=0;
-    u32 listCtrStart[] = {0x080D7CAC, 0x080D748C, 0x080D740C, 0x080D794C};
-    char* listSystem[] = {"4.x", "6.x", "7.x", "9.x"};
+    u32 listCtrStart[] = {0x080D7CAC, 0x080D858C, 0x080D748C, 0x080D740C, 0x080D74CC, 0x080D794C};
+    char* listSystem[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
     u32 lenListCtrStart = sizeof(listCtrStart)/sizeof(u32);
     for(u32 c=0; c < lenListCtrStart; c++){
         if(*(u32*)listCtrStart[c] == 0x5C980){
@@ -146,8 +146,8 @@ u32 NandPadgen()
 
     //If value not in previous list start memory scanning (test range)
     if (ctrStart == 0){
-        for(u32 c=0x080D7FFF; c > 0x080D7000; c--){
-            if(*(u32*)c == 0x5C980){
+        for(u32 c=0x080D8FFF; c > 0x08000000; c--){
+            if(*(u32*)c == 0x5C980 && *(u32*)(c+1) == 0x800005C9){
                 ctrStart = c + 0x30;
                 Debug("CTR Start 0x%08X", ctrStart);
                 break;
