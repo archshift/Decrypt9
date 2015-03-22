@@ -6,12 +6,14 @@
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 400
 
-#define SCREEN_SIZE (BYTES_PER_PIXEL*SCREEN_WIDTH*SCREEN_HEIGHT)
+#define SCREEN_SIZE (BYTES_PER_PIXEL * SCREEN_WIDTH * SCREEN_HEIGHT)
 
 #define RGB(r,g,b) (r<<24|b<<16|g<<8|r)
 
-#define TOP_SCREEN (u8*)(*(u32*)((uint32_t)0x080FFFC0 + 4 * (*(u32*)0x080FFFD8 & 1)))
-#define BOT_SCREEN (u8*)(*(u32*)0x080FFFD4)
+#define TOP_SCREEN0 (u8*)(0x20000000)
+#define TOP_SCREEN1 (u8*)(0x20046500)
+#define BOT_SCREEN0 (u8*)(0x2008CA00)
+#define BOT_SCREEN1 (u8*)(0x200C4E00)
 extern int current_y;
 
 void ClearScreen(unsigned char *screen, int color);
