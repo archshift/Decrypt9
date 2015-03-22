@@ -65,13 +65,15 @@ void DrawStringF(int x, int y, const char *format, ...)
     vasprintf(&str, format, va);
     va_end(va);
 
-    DrawString(TOP_SCREEN, str, x, y, FONT_COLOR, BG_COLOR);
+    DrawString(TOP_SCREEN0, str, x, y, FONT_COLOR, BG_COLOR);
+    DrawString(TOP_SCREEN1, str, x, y, FONT_COLOR, BG_COLOR);
     free(str);
 }
 
 void DebugClear()
 {
-    ClearScreen(TOP_SCREEN, BG_COLOR);
+    ClearScreen(TOP_SCREEN0, BG_COLOR);
+    ClearScreen(TOP_SCREEN1, BG_COLOR);
     current_y = START_Y;
 }
 
@@ -84,7 +86,8 @@ void Debug(const char *format, ...)
     vasprintf(&str, format, va);
     va_end(va);
 
-    DrawString(TOP_SCREEN, str, 10, current_y, FONT_COLOR, BG_COLOR);
+    DrawString(TOP_SCREEN0, str, 10, current_y, FONT_COLOR, BG_COLOR);
+    DrawString(TOP_SCREEN1, str, 10, current_y, FONT_COLOR, BG_COLOR);
     free(str);
 
     current_y += 10;
