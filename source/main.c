@@ -12,7 +12,8 @@
 
 void ClearTop()
 {
-    ClearScreen(TOP_SCREEN, RGB(255, 255, 255));
+    ClearScreen(TOP_SCREEN0, RGB(255, 255, 255));
+    ClearScreen(TOP_SCREEN1, RGB(255, 255, 255));
     current_y = 0;
 }
 

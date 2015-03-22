@@ -7,6 +7,8 @@ static FIL file;
 
 bool InitFS()
 {
+    *(u32*)0x10000020 = 0;
+    *(u32*)0x10000020 = 0x340;
     return f_mount(&fs, "0:", 0) == FR_OK;
 }
 
