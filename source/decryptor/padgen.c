@@ -128,47 +128,48 @@ u32 SdPadgen()
     return 0;
 }
 
-u32 FindNandCtr()
+static u8* FindNandCtr()
 {
-    //Use memory know to start scanning.
-    //If not in t Should use some sort of memory scanning for it instead of hardcoding the address, though.
-    u32 ctrStart=0;
-    u32 listCtrStart[] = {0x080D7CAC, 0x080D858C, 0x080D748C, 0x080D740C, 0x080D74CC, 0x080D794C};
-    char* listSystem[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
-    u32 lenListCtrStart = sizeof(listCtrStart)/sizeof(u32);
-    for(u32 c=0; c < lenListCtrStart; c++){
-        if(*(u32*)listCtrStart[c] == 0x5C980){
-            ctrStart = listCtrStart[c] + 0x30;
-            Debug("System version %s", listSystem[c]);
-            break;
+    static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
+    static const u8* version_ctrs[] = {
+        (u8*)0x080D7CAC,
+        (u8*)0x080D858C,
+        (u8*)0x080D748C,
+        (u8*)0x080D740C,
+        (u8*)0x080D74CC,
+        (u8*)0x080D794C
+    };
+    static const u32 version_ctrs_len = sizeof(version_ctrs) / sizeof(u32);
+
+    for (u32 i = 0; i < version_ctrs_len; i++) {
+        if (*(u32*)version_ctrs[i] == 0x5C980) {
+            Debug("System version %s", versions[i]);
+            return (u8*)(version_ctrs[i] + 0x30);
         }
     }
 
-    //If value not in previous list start memory scanning (test range)
-    if (ctrStart == 0){
-        for(u32 c=0x080D8FFF; c > 0x08000000; c--){
-            if(*(u32*)c == 0x5C980 && *(u32*)(c+1) == 0x800005C9){
-                ctrStart = c + 0x30;
-                Debug("CTR Start 0x%08X", ctrStart);
-                break;
-            }
+    // If value not in previous list start memory scanning (test range)
+    for (u8* c = (u8*)0x080D8FFF; c > (u8*)0x08000000; c--) {
+        if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
+            Debug("CTR Start 0x%08X", c + 0x30);
+            return c + 0x30;
         }
     }
 
-    return ctrStart;
+    return NULL;
 }
 
 u32 NandPadgen()
 {
-    u32 ctrStart = FindNandCtr();
-    if (ctrStart == 0)
+    u8* ctrStart = FindNandCtr();
+    if (ctrStart == NULL)
         return 1;
 
     u8 ctr[16] = {0x0};
     u32 i = 0;
-    for(i = 0; i < 16; i++){
-        ctr[i] = *((u8*)(ctrStart+(15-i))); //The CTR is stored backwards in memory.
-    }
+    for(i = 0; i < 16; i++)
+        ctr[i] = *(ctrStart + (15 - i)); //The CTR is stored backwards in memory.
+
     add_ctr(ctr, 0xB93000); //The CTR stored in memory would theoretically be for NAND block 0, so we need to increment it some.
 
     Debug("Creating NAND FAT16 xorpad. Size (MB): 760");
