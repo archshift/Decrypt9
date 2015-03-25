@@ -128,7 +128,7 @@ u32 SdPadgen()
     return 0;
 }
 
-u32 NandPadgen()
+u32 FindNandCtr()
 {
     //Use memory know to start scanning.
     //If not in t Should use some sort of memory scanning for it instead of hardcoding the address, though.
@@ -155,6 +155,12 @@ u32 NandPadgen()
         }
     }
 
+    return ctrStart;
+}
+
+u32 NandPadgen()
+{
+    u32 ctrStart = FindNandCtr();
     if (ctrStart == 0)
         return 1;
 
