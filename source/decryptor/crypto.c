@@ -108,6 +108,21 @@ void add_ctr(void* ctr, u32 carry)
     }
 }
 
+static void _decrypt(u32 value, void* inbuf, void* outbuf, size_t blocks)
+{
+    *REG_AESCNT = 0;
+    *REG_AESBLKCNT = blocks << 16;
+    *REG_AESCNT = value |
+                  AES_CNT_START |
+                  AES_CNT_INPUT_ORDER |
+                  AES_CNT_OUTPUT_ORDER |
+                  AES_CNT_INPUT_ENDIAN |
+                  AES_CNT_OUTPUT_ENDIAN |
+                  AES_CNT_FLUSH_READ |
+                  AES_CNT_FLUSH_WRITE;
+    aes_fifos(inbuf, outbuf, blocks);
+}
+
 void aes_decrypt(void* inbuf, void* outbuf, void* iv, size_t size, u32 mode)
 {
     u32 in  = (u32)inbuf;
@@ -124,43 +139,28 @@ void aes_decrypt(void* inbuf, void* outbuf, void* iv, size_t size, u32 mode)
     }
 }
 
-void _decrypt(u32 value, void* inbuf, void* outbuf, size_t blocks)
-{
-    *REG_AESCNT = 0;
-    *REG_AESBLKCNT = blocks << 16;
-    *REG_AESCNT = value |
-                  AES_CNT_START |
-                  AES_CNT_INPUT_ORDER |
-                  AES_CNT_OUTPUT_ORDER |
-                  AES_CNT_INPUT_ENDIAN |
-                  AES_CNT_OUTPUT_ENDIAN |
-                  AES_CNT_FLUSH_READ |
-                  AES_CNT_FLUSH_WRITE;
-    aes_fifos(inbuf, outbuf, blocks);
-}
-
 void aes_fifos(void* inbuf, void* outbuf, size_t blocks)
 {
     u32 in  = (u32)inbuf;
+    if (!in) return;
+
     u32 out = (u32)outbuf;
     size_t curblock = 0;
     while (curblock != blocks)
     {
-        if (in)
+        while (aescnt_checkwrite());
+
+        int ii = 0;
+        for (ii = in; ii != in + AES_BLOCK_SIZE; ii += 4)
         {
-            while (aescnt_checkwrite()) ;
-            int ii = 0;
-            for (ii = in; ii != in + AES_BLOCK_SIZE; ii += 4)
+            set_aeswrfifo( *(u32*)(ii) );
+        }
+        if (out)
+        {
+            while (aescnt_checkread()) ;
+            for (ii = out; ii != out + AES_BLOCK_SIZE; ii += 4)
             {
-                set_aeswrfifo( *(u32*)(ii) );
-            }
-            if (out)
-            {
-                while (aescnt_checkread()) ;
-                for (ii = out; ii != out + AES_BLOCK_SIZE; ii += 4)
-                {
-                    *(u32*)ii = read_aesrdfifo();
-                }
+                *(u32*)ii = read_aesrdfifo();
             }
         }
         curblock++;

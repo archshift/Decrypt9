@@ -43,7 +43,6 @@ void setup_aeskey(u32 keyno, int value, void* key);
 void use_aeskey(u32 keyno);
 void set_ctr(int mode, void* iv);
 void aes_decrypt(void* inbuf, void* outbuf, void* iv, size_t size, u32 mode);
-void _decrypt(u32 value, void* inbuf, void* outbuf, size_t blocks);
 void aes_fifos(void* inbuf, void* outbuf, size_t blocks);
 void set_aeswrfifo(u32 value);
 u32 read_aesrdfifo(void);
