@@ -193,35 +193,38 @@ u32 CreatePad(PadInfo *info)
         return 1;
 
     if(info->setKeyY)
-        setup_aeskey(info->keyslot, AES_BIG_INPUT|AES_NORMAL_INPUT, info->keyY);
+        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, info->keyY);
     use_aeskey(info->keyslot);
 
     u8 ctr[16] __attribute__((aligned(32)));
     memcpy(ctr, info->CTR, 16);
 
-    u32 size_bytes = info->size_mb*1024*1024;
-    u32 size_100 = size_bytes/100;
+    u32 size_bytes = info->size_mb * 1024*1024;
+    u32 size_100 = size_bytes / 100;
     u32 seekpos = 0;
     for (u32 i = 0; i < size_bytes; i += BLOCK_SIZE) {
-        u32 j;
-        for (j = 0; (j < BLOCK_SIZE) && (i+j < size_bytes); j+= 16) {
-            set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
-            aes_decrypt((void*)zero_buf, (void*)BUFFER_ADDR+j, ctr, 1, AES_CTR_MODE);
+        u32 curr_block_size = mini(BLOCK_SIZE, size_bytes - i);
+
+        for (u32 j = 0; j < curr_block_size; j+= 16) {
+            set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
+            aes_decrypt((void*)zero_buf, (void*)BUFFER_ADDR + j, ctr, 1, AES_CTR_MODE);
             add_ctr(ctr, 1);
         }
 
-        DrawStringF(SCREEN_HEIGHT-40, SCREEN_WIDTH-20, "%i%%", (i+j)/size_100);
-        bytesWritten = FileWrite((void*)BUFFER_ADDR, j, seekpos);
-        seekpos += j;
-        if(bytesWritten != j)
-        {
+        DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "%i%%", (i + curr_block_size) / size_100);
+
+        bytesWritten = FileWrite((void*)BUFFER_ADDR, curr_block_size, seekpos);
+        seekpos += curr_block_size;
+        if (bytesWritten != curr_block_size) {
             Debug("ERROR, SD card may be full.");
             FileClose();
             return 1;
         }
     }
 
-    DrawStringF(SCREEN_HEIGHT-40, SCREEN_WIDTH-20, "    ");
+    DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "    ");
     FileClose();
     return 0;
+#undef BUFFER_ADDR
+#undef BLOCK_SIZE
 }
