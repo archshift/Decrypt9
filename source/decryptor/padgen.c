@@ -172,11 +172,21 @@ u32 NandPadgen()
 
     add_ctr(ctr, 0xB93000); //The CTR stored in memory would theoretically be for NAND block 0, so we need to increment it some.
 
-    Debug("Creating NAND FAT16 xorpad. Size (MB): 760");
+    u32 keyslot;
+    u32 nand_size;
+    switch (GetUnitPlatform()) {
+        case PLATFORM_3DS:
+            keyslot = 0x4;
+            nand_size = 756;
+        case PLATFORM_N3DS:
+            keyslot = 0x5;
+            nand_size = 1054;
+    }
+
+    Debug("Creating NAND FAT16 xorpad. Size (MB): %u", nand_size);
     Debug("Filename: nand.fat16.xorpad");
 
-    PadInfo padInfo = {.keyslot = 0x4, .setKeyY = 0, .size_mb = 760, .filename = "/nand.fat16.xorpad"};
-    //It's actually around 758MB in size. But meh, I'll just round up a bit.
+    PadInfo padInfo = {.keyslot = keyslot, .setKeyY = 0, .size_mb = nand_size , .filename = "/nand.fat16.xorpad"};
     memcpy(padInfo.CTR, ctr, 16);
 
     u32 result = CreatePad(&padInfo);
@@ -192,7 +202,7 @@ static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
 
 u32 CreatePad(PadInfo *info)
 {
-#define BUFFER_ADDR ((volatile uint8_t*)0x21000000)
+#define BUFFER_ADDR ((volatile u8*)0x21000000)
 #define BLOCK_SIZE  (4*1024*1024)
     size_t bytesWritten;
 
