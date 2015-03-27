@@ -1,4 +1,5 @@
-#include platform.h
+#include "common.h"
+#include "platform.h"
 
 #define CONFIG_PLATFORM_REG ((volatile u32*)0x10140FFC)
 

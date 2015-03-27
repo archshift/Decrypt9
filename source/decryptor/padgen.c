@@ -2,6 +2,7 @@
 
 #include "fs.h"
 #include "draw.h"
+#include "platform.h"
 #include "decryptor/padgen.h"
 #include "decryptor/crypto.h"
 
