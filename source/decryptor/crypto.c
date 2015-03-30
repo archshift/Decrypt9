@@ -92,15 +92,26 @@ void add_ctr(void* ctr, u32 carry)
     u32 counter[4];
     u8 *outctr = (u8 *) ctr;
     u32 sum;
-    u32 i;
+    int32_t i;
 
     for(i=0; i<4; i++) {
         counter[i] = (outctr[i*4+0]<<24) | (outctr[i*4+1]<<16) | (outctr[i*4+2]<<8) | (outctr[i*4+3]<<0);
+    }
 
-        sum = counter[3-i] + carry;
-        carry = (u32)(sum < counter[3-i]);
-        counter[3-i] = sum;
+    for(i=3; i>=0; i--)
+    {
+        sum = counter[i] + carry;
+        if (sum < counter[i]) {
+            carry = 1;
+        }
+        else {
+            carry = 0;
+        }
+        counter[i] = sum;
+    }
 
+    for(i=0; i<4; i++)
+    {
         outctr[i*4+0] = counter[i]>>24;
         outctr[i*4+1] = counter[i]>>16;
         outctr[i*4+2] = counter[i]>>8;
