@@ -6,6 +6,7 @@
 #include "draw.h"
 #include "fs.h"
 #include "hid.h"
+#include "i2c.h"
 #include "decryptor/padgen.h"
 #include "decryptor/titlekey.h"
 
@@ -13,6 +14,12 @@ void ClearTop()
 {
     ClearScreen(TOP_SCREEN, RGB(255, 255, 255));
     current_y = 0;
+}
+
+void Reboot()
+{
+    i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 2);
+    while(true);
 }
 
 int main()
@@ -24,6 +31,8 @@ int main()
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
     Debug("Y: NAND Padgen");
+    Debug("");
+    Debug("START: Reboot");
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
@@ -42,9 +51,20 @@ int main()
             ClearTop();
             Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
             break;
+        } else if (pad_state & BUTTON_START) {
+            goto reboot;
         }
     }
 
+    Debug("");
+    Debug("Press START to reboot to home.");
+    while(true) {
+        if (InputWait() & BUTTON_START)
+            break;
+    }
+
+reboot:
+    Reboot();
     DeinitFS();
     return 0;
 }

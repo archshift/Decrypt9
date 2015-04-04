@@ -45,7 +45,7 @@ u32 DecryptTitlekeys(void)
 		memset(ctr, 0, 16);
 		memcpy(ctr, info->entries[i].titleId, 8);
 		set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
-		memcpy(keyY, (void *) common_keyy[info->entries[i].commonKeyIndex], 16);
+		memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
 		setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
 		use_aeskey(0x3D);
 		aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CBC_DECRYPT_MODE);
@@ -54,7 +54,7 @@ u32 DecryptTitlekeys(void)
 	if(!FileCreate("/decTitleKeys.bin", true))
 		return 1;
 
-    FileWrite(info, info->n_entries * sizeof(TitleKeyEntry)+16, 0);
+    FileWrite(info, info->n_entries * sizeof(TitleKeyEntry) + 16, 0);
 	FileClose();
 	
 	Debug("Done!");
