@@ -64,7 +64,7 @@ int main()
     }
 
 reboot:
-    Reboot();
     DeinitFS();
+    Reboot();
     return 0;
 }
