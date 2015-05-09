@@ -221,7 +221,6 @@ u32 CreatePad(PadInfo *info)
 
     u32 size_bytes = info->size_mb * 1024*1024;
     u32 size_100 = size_bytes / 100;
-    u32 seekpos = 0;
     for (u32 i = 0; i < size_bytes; i += BLOCK_SIZE) {
         u32 curr_block_size = min(BLOCK_SIZE, size_bytes - i);
 
@@ -233,8 +232,7 @@ u32 CreatePad(PadInfo *info)
 
         DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "%i%%", (i + curr_block_size) / size_100);
 
-        bytesWritten = FileWrite((void*)BUFFER_ADDR, curr_block_size, seekpos);
-        seekpos += curr_block_size;
+        bytesWritten = FileWrite((void*)BUFFER_ADDR, curr_block_size, i);
         if (bytesWritten != curr_block_size) {
             Debug("ERROR, SD card may be full.");
             FileClose();
