@@ -223,7 +223,7 @@ u32 CreatePad(PadInfo *info)
     u32 size_100 = size_bytes / 100;
     u32 seekpos = 0;
     for (u32 i = 0; i < size_bytes; i += BLOCK_SIZE) {
-        u32 curr_block_size = mini(BLOCK_SIZE, size_bytes - i);
+        u32 curr_block_size = min(BLOCK_SIZE, size_bytes - i);
 
         for (u32 j = 0; j < curr_block_size; j+= 16) {
             set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
