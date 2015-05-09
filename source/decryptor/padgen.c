@@ -53,7 +53,9 @@ u32 NcchPadgen()
         memcpy(padInfo.keyY, info->entries[i].keyY, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 112);
 
-        if(info->entries[i].uses7xCrypto)
+        if(info->entries[i].uses7xCrypto == 0xA) // won't work on an Old 3DS
+            padInfo.keyslot = 0x18;
+        else if(info->entries[i].uses7xCrypto)
             padInfo.keyslot = 0x25;
         else
             padInfo.keyslot = 0x2C;
