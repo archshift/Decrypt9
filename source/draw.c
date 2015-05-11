@@ -1,3 +1,7 @@
+// Copyright 2013 Normmatt
+// Licensed under GPLv2 or any later version
+// Refer to the license.txt file included.
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
