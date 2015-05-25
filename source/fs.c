@@ -60,3 +60,24 @@ void FileClose()
 {
     f_close(&file);
 }
+
+static uint64_t ClustersToBytes(FATFS* fs, DWORD clusters)
+{
+    uint64_t sectors = clusters * fs->csize;
+#if _MAX_SS != _MIN_SS
+    return sectors * fs->ssize;
+#else
+    return sectors * _MAX_SS;
+#endif
+}
+
+uint64_t RemainingStorageSpace()
+{
+    DWORD free_clusters;
+    FATFS *fs2;
+    FRESULT res = f_getfree("0:", &free_clusters, &fs2);
+    if (res)
+        return -1;
+
+    return ClustersToBytes(&fs, free_clusters);
+}

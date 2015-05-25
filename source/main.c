@@ -33,6 +33,10 @@ int main()
     Debug("Y: NAND Padgen");
     Debug("");
     Debug("START: Reboot");
+    Debug("");
+    Debug("");
+    Debug("Remaining SD storage space: %llu MiB", RemainingStorageSpace() / 1024 / 1024);
+
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
