@@ -20,8 +20,10 @@ typedef struct {
     u8   CTR[16];
     u8   keyY[16];
     u32  size_mb;
-    u8   reserved[8];
+    u8   reserved[4];
+    u32  usesSeedCrypto;
     u32  uses7xCrypto;
+    u64  titleId;
     char filename[112];
 } __attribute__((packed)) NcchInfoEntry;
 
@@ -32,6 +34,18 @@ typedef struct {
     u8  reserved[4];
     NcchInfoEntry entries[MAXENTRIES];
 } __attribute__((packed, aligned(16))) NcchInfo;
+
+typedef struct {
+    u64 titleId;
+    u8 external_seed[16];
+    u8 reserved[8];
+} __attribute__((packed)) SeedInfoEntry;
+
+typedef struct {
+    u32 n_entries;
+    u8 padding[12];
+    SeedInfoEntry entries[MAXENTRIES];
+} __attribute__((packed)) SeedInfo;
 
 
 typedef struct {

@@ -5,6 +5,7 @@
 #include "platform.h"
 #include "decryptor/padgen.h"
 #include "decryptor/crypto.h"
+#include "sha256.h"
 
 u32 NcchPadgen()
 {
@@ -12,6 +13,7 @@ u32 NcchPadgen()
     u32 result;
 
     NcchInfo *info = (NcchInfo*)0x20316000;
+    SeedInfo *seedinfo = (SeedInfo*)0x20400000;
 
     if (FileOpen("/slot0x25KeyX.bin")) {
         u8 slot0x25KeyX[16] = {0};
@@ -28,6 +30,20 @@ u32 NcchPadgen()
         Debug("Warning, not using slot0x25KeyX.bin");
         Debug("7.x game decryption will fail on less than 7.x!");
     }
+    
+    if (FileOpen("/seeddb.bin")) {
+        Debug("Opening seeddb.bin ...");
+        bytesRead = FileRead(seedinfo, 16, 0);
+        if (!seedinfo->n_entries || seedinfo->n_entries > MAXENTRIES) {
+            Debug("Too many/few seeddb entries.");
+            return 0;
+        }
+        bytesRead = FileRead(seedinfo->entries, seedinfo->n_entries * sizeof(SeedInfoEntry), 16);
+        FileClose();
+    } else {
+        Debug("Warning, didn't open seeddb.bin");
+        Debug("9.x seed crypto game decryption will fail!");
+    }
 
     Debug("Opening ncchinfo.bin ...");
     if (!FileOpen("/ncchinfo.bin")) {
@@ -36,7 +52,7 @@ u32 NcchPadgen()
     }
     bytesRead = FileRead(info, 16, 0);
 
-    if (!info->n_entries || info->n_entries > MAXENTRIES || (info->ncch_info_version != 0xF0000003)) {
+    if (!info->n_entries || info->n_entries > MAXENTRIES || (info->ncch_info_version != 0xF0000004)) {
         Debug("Too many/few entries, or wrong version ncchinfo.bin");
         return 0;
     }
@@ -50,8 +66,32 @@ u32 NcchPadgen()
 
         PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
-        memcpy(padInfo.keyY, info->entries[i].keyY, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 112);
+        if (info->entries[i].uses7xCrypto && info->entries[i].usesSeedCrypto) {
+            u8 keydata[32];
+            memcpy(keydata, info->entries[i].keyY, 16);
+            u32 found_seed = 0;
+            for (u32 j = 0; j < seedinfo->n_entries; j++) {
+                if (seedinfo->entries[j].titleId == info->entries[i].titleId) {
+                    found_seed = 1;
+                    memcpy(&keydata[16], seedinfo->entries[j].external_seed, 16);
+                    break;
+                }
+            }
+            if (!found_seed)
+            {
+                Debug("Failed to find seed in seeddb.bin");
+                return 0;
+            }
+	    u8 sha256sum[32];
+            sha256_context shactx;
+            sha256_starts(&shactx);
+            sha256_update(&shactx, keydata, 32);
+            sha256_finish(&shactx, sha256sum);
+            memcpy(padInfo.keyY, sha256sum, 16);
+        }
+        else
+            memcpy(padInfo.keyY, info->entries[i].keyY, 16);
 
         if(info->entries[i].uses7xCrypto == 0xA) // won't work on an Old 3DS
             padInfo.keyslot = 0x18;
