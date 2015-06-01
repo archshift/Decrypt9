@@ -12,8 +12,10 @@
 #  16 bytes   Counter
 #  16 bytes   KeyY
 #   4 bytes   Size in MB(rounded up)
-#   8 bytes   Reserved
+#   4 bytes   Reserved
+#   4 bytes   Uses 9x SeedCrypto (0 or 1)
 #   4 bytes   Uses 7x crypto? (0 or 1)
+#   8 bytes   Title ID
 # 112 bytes   Output file name in UTF-8 (format used: "/titleId.partitionName.sectionName.xorpad")
 #####
 
@@ -168,25 +170,31 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
     uses7xCrypto = bytearray(header.flags)[3]
     if uses7xCrypto:
         print tab + 'Uses 7.x NCCH crypto'
+        
+    usesSeedCrypto = bytearray(header.flags)[7]
+    if usesSeedCrypto == 0x20:
+        usesSeedCrypto = 1
+        print tab + 'Uses 9.x SEED crypto'
+    
     
     print ''
     
     if header.exhdrSize:
-        data = data + parseNCCHSection(header, ncchSection.exheader, 0, 1, tab)
+        data = data + parseNCCHSection(header, ncchSection.exheader, 0, 0, 1, tab)
         data = data + genOutName(titleId, ncsdPartitions[idx], b'exheader')
         entries += 1
         print ''
     if header.exefsSize: #We need generate two xorpads for exefs if it uses 7.x crypto, since only a part of it uses the new crypto.
-        data = data + parseNCCHSection(header, ncchSection.exefs, 0, 1, tab)
+        data = data + parseNCCHSection(header, ncchSection.exefs, 0, 0, 1, tab)
         data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_norm')
         entries += 1
         if uses7xCrypto:
-            data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, 0, tab)
+            data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, usesSeedCrypto, 0, tab)
             data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_7x')
             entries += 1
         print ''
     if header.romfsSize:
-        data = data + parseNCCHSection(header, ncchSection.romfs, uses7xCrypto, 1, tab)
+        data = data + parseNCCHSection(header, ncchSection.romfs, uses7xCrypto, usesSeedCrypto, 1, tab)
         data = data + genOutName(titleId, ncsdPartitions[idx], b'romfs')
         entries += 1
         print ''
@@ -195,7 +203,7 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
     
     return [entries, data]
 
-def parseNCCHSection(header, type, uses7xCrypto, doPrint, tab):
+def parseNCCHSection(header, type, uses7xCrypto, usesSeedCrypto, doPrint, tab):
     if type == ncchSection.exheader:
         sectionName = 'ExHeader'
         offset = 0x200 #Always 0x200
@@ -214,6 +222,7 @@ def parseNCCHSection(header, type, uses7xCrypto, doPrint, tab):
     
     counter = getNcchAesCounter(header, type)
     keyY = bytearray(header.signature[:16])
+    titleId = struct.unpack('<Q',(bytearray(header.programId[:8])))[0]
     
     sectionMb = roundUp(sectionSize, 1024*1024) / (1024*1024)
     if sectionMb == 0:
@@ -224,7 +233,7 @@ def parseNCCHSection(header, type, uses7xCrypto, doPrint, tab):
         print tab + '%s counter: %s' % (sectionName, hexlify(counter))
         print tab + '%s Megabytes(rounded up): %d' % (sectionName, sectionMb)
     
-    return struct.pack('<16s16sIIII', str(counter), str(keyY), sectionMb, 0, 0, uses7xCrypto)
+    return struct.pack('<16s16sIIIIQ', str(counter), str(keyY), sectionMb, 0, usesSeedCrypto, uses7xCrypto, titleId)
 
 def genOutName(titleId, partitionName, sectionName):
     outName = b'/%s.%s.%s.xorpad' % (titleId, partitionName, sectionName)
@@ -282,7 +291,7 @@ if __name__ == "__main__":
     
     dndFix = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'ncchinfo.bin') #Fix drag'n'drop
     with open(dndFix, 'wb') as fh:
-        fh.write(struct.pack('<IIII',0xFFFFFFFF, 0xF0000003, entries, 0))
+        fh.write(struct.pack('<IIII',0xFFFFFFFF, 0xF0000004, entries, 0))
         fh.write(data)
     
     print 'Done!'
