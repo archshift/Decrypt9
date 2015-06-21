@@ -16,15 +16,23 @@ include $(DEVKITARM)/ds_rules
 # INCLUDES is a list of directories containing header files
 # SPECS is the directory containing the important build and link files
 #---------------------------------------------------------------------------------
-export TARGET	:=	CTRXtools
 BUILD			:=	build
 SOURCES			:=	source source/fatfs source/decryptor
 DATA			:=	data
 INCLUDES		:=	$(SOURCES) include
 
 #---------------------------------------------------------------------------------
-# Setup some defines
+# Include AppInfo / define Loader
 #---------------------------------------------------------------------------------
+
+ifneq ($(BUILD),$(notdir $(CURDIR)))
+TOPDIR ?= $(CURDIR)
+else
+TOPDIR ?= $(CURDIR)/..
+endif
+
+include $(TOPDIR)/resources/AppInfo
+LOADER			:= brahma_loader
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -41,7 +49,7 @@ CFLAGS	+=	$(INCLUDE) -DARM9
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-nostartfiles -g --specs=../stub.specs $(ARCH) -Wl,-Map,$(TARGET).map
+LDFLAGS	=	-nostartfiles -g --specs=../stub.specs $(ARCH) -Wl,-Map,$(notdir $*.map)
 
 LIBS	:= 
 
@@ -59,7 +67,8 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
 export OUTPUT_D	:=	$(CURDIR)/output
-export OUTPUT	:=	$(OUTPUT_D)/$(TARGET)
+export OUTPUT_N	:=	$(subst $(SPACE),,$(APP_TITLE))
+export OUTPUT	:=	$(OUTPUT_D)/$(OUTPUT_N)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -97,10 +106,15 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 .PHONY: $(BUILD) clean all
  
 #---------------------------------------------------------------------------------
-all: $(OUTPUT_D) $(BUILD)
+all: $(OUTPUT_D) $(OUTPUT).3dsx $(BUILD)
 
 $(OUTPUT_D):
 	@[ -d $@ ] || mkdir -p $@
+	
+$(OUTPUT).3dsx:
+	@make --no-print-directory -C $(TOPDIR)/$(LOADER) -f $(TOPDIR)/$(LOADER)/Makefile
+	cp $(TOPDIR)/$(LOADER)/output/$(OUTPUT_N).3dsx $(OUTPUT).3dsx
+	cp $(TOPDIR)/$(LOADER)/output/$(OUTPUT_N).smdh $(OUTPUT).smdh
 	
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
@@ -110,8 +124,9 @@ $(BUILD):
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT_D)
- 
+	@rm -fr $(BUILD) $(OUTPUT).bin
+	@make clean --no-print-directory -C $(TOPDIR)/$(LOADER) -f $(TOPDIR)/$(LOADER)/Makefile
+	@rm -fr $(OUTPUT_D)
  
 #---------------------------------------------------------------------------------
 else

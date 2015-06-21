@@ -6,35 +6,30 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-TOPDIR ?= $(CURDIR)
 include $(DEVKITARM)/3ds_rules
 
 #---------------------------------------------------------------------------------
-# TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
-#
-# NO_SMDH: if set to anything, no SMDH file is generated.
-# APP_TITLE is the name of the app stored in the SMDH file (Optional)
-# APP_DESCRIPTION is the description of the app stored in the SMDH file (Optional)
-# APP_AUTHOR is the author of the app stored in the SMDH file (Optional)
-# ICON is the filename of the icon (.png), relative to the project folder.
-#   If not set, it attempts to use one of the following (in this order):
-#     - <Project name>.png
-#     - icon.png
-#     - <libctru folder>/default_icon.png
 #---------------------------------------------------------------------------------
-TARGET			:=	CTRXtools
 BUILD			:=	build
 SOURCES			:=	source
 DATA			:=	data
 INCLUDES		:=	include
-APP_TITLE 		:=  CTRXtools
-APP_DESCRIPTION :=  Open source decryption & dump tools.
-APP_AUTHOR		:=  d0k3 & others
-ICON			:=  ../resources/icon.png
+
+#---------------------------------------------------------------------------------
+# Include AppInfo
+#---------------------------------------------------------------------------------
+
+ifneq ($(BUILD),$(notdir $(CURDIR)))
+TOPDIR ?= $(CURDIR)/..
+else
+TOPDIR ?= $(CURDIR)/../..
+endif
+
+include $(TOPDIR)/resources/AppInfo
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -45,7 +40,7 @@ CFLAGS	:=	-g -Wall -O3 -mword-relocations \
 			-fomit-frame-pointer -ffast-math \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DPAYLOAD=\"$(TARGET).bin\" -DARM11 -D_3DS -DARM_ARCH -w
+CFLAGS	+=	$(INCLUDE) -DPAYLOAD=\"$(subst $(SPACE),,$(APP_TITLE)).bin\" -DARM11 -D_3DS -DARM_ARCH -w
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11 -w
 
@@ -68,9 +63,9 @@ LIBDIRS	:= $(CTRULIB)
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
 
-export OUTPUT_D	:=	$(CURDIR)/../output
-export OUTPUT	:=	$(OUTPUT_D)/$(TARGET)
-export TOPDIR	:=	$(CURDIR)
+export OUTPUT_D	:=	$(CURDIR)/output
+export OUTPUT_N	:=	$(subst $(SPACE),,$(APP_TITLE))
+export OUTPUT	:=	$(OUTPUT_D)/$(OUTPUT_N)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -105,18 +100,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-ifeq ($(strip $(ICON)),)
-	icons := $(wildcard *.png)
-	ifneq (,$(findstring $(TARGET).png,$(icons)))
-		export APP_ICON := $(TOPDIR)/$(TARGET).png
-	else
-		ifneq (,$(findstring icon.png,$(icons)))
-			export APP_ICON := $(TOPDIR)/icon.png
-		endif
-	endif
-else
-	export APP_ICON := $(TOPDIR)/$(ICON)
-endif
+export APP_ICON := $(TOPDIR)/resources/icon.png
 
 .PHONY: $(BUILD) clean all
 
