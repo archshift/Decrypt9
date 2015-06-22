@@ -6,59 +6,56 @@ ifeq ($(strip $(DEVKITARM)),)
 $(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
 endif
 
-include $(DEVKITARM)/ds_rules
+include $(DEVKITARM)/3ds_rules
 
 #---------------------------------------------------------------------------------
-# TARGET is the name of the output
 # BUILD is the directory where object files & intermediate files will be placed
 # SOURCES is a list of directories containing source code
 # DATA is a list of directories containing data files
 # INCLUDES is a list of directories containing header files
-# SPECS is the directory containing the important build and link files
 #---------------------------------------------------------------------------------
 BUILD			:=	build
-SOURCES			:=	source source/fatfs source/decryptor
+SOURCES			:=	source
 DATA			:=	data
-INCLUDES		:=	$(SOURCES) include
+INCLUDES		:=	include
 
 #---------------------------------------------------------------------------------
-# Include AppInfo / define Loader
+# Include AppInfo
 #---------------------------------------------------------------------------------
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
-TOPDIR ?= $(CURDIR)
-else
 TOPDIR ?= $(CURDIR)/..
+else
+TOPDIR ?= $(CURDIR)/../..
 endif
 
 include $(TOPDIR)/resources/AppInfo
-LOADER			:= brahma_loader
 
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork
+ARCH	:=	-march=armv6k -mtune=mpcore -mfloat-abi=hard
 
-CFLAGS	:=	-g -Wall -O2\
-			-march=armv5te -mtune=arm946e-s -fomit-frame-pointer\
-			-ffast-math -std=c99\
+CFLAGS	:=	-g -Wall -O3 -mword-relocations \
+			-fomit-frame-pointer -ffast-math \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -DARM9
+CFLAGS	+=	$(INCLUDE) -DPAYLOAD=\"$(subst $(SPACE),,$(APP_TITLE)).bin\" -DARM11 -D_3DS -DARM_ARCH -w
 
-CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions
+CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11 -w
 
 ASFLAGS	:=	-g $(ARCH)
-LDFLAGS	=	-nostartfiles -g --specs=../stub.specs $(ARCH) -Wl,-Map,$(notdir $*.map)
+LDFLAGS	=	-specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(notdir $*.map)
 
-LIBS	:= 
+LIBS	:= -lctru -lm
 
 #---------------------------------------------------------------------------------
 # list of directories containing libraries, this must be the top level containing
 # include and lib
 #---------------------------------------------------------------------------------
-LIBDIRS	:=
-  
+LIBDIRS	:= $(CTRULIB)
+
+
 #---------------------------------------------------------------------------------
 # no real need to edit anything past this point unless you need to add additional
 # rules for different file extensions
@@ -94,7 +91,7 @@ else
 endif
 #---------------------------------------------------------------------------------
 
-export OFILES	:= $(addsuffix .o,$(BINFILES)) \
+export OFILES	:=	$(addsuffix .o,$(BINFILES)) \
 			$(CPPFILES:.cpp=.o) $(CFILES:.c=.o) $(SFILES:.s=.o)
 
 export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
@@ -103,53 +100,66 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
+export APP_ICON := $(TOPDIR)/resources/icon.png
+
 .PHONY: $(BUILD) clean all
- 
+
 #---------------------------------------------------------------------------------
-all: $(OUTPUT_D) $(OUTPUT).3dsx $(BUILD)
+all: $(OUTPUT_D) $(BUILD)
 
 $(OUTPUT_D):
 	@[ -d $@ ] || mkdir -p $@
 	
-$(OUTPUT).3dsx:
-	@make --no-print-directory -C $(TOPDIR)/$(LOADER) -f $(TOPDIR)/$(LOADER)/Makefile
-	cp $(TOPDIR)/$(LOADER)/output/$(OUTPUT_N).3dsx $(OUTPUT).3dsx
-	cp $(TOPDIR)/$(LOADER)/output/$(OUTPUT_N).smdh $(OUTPUT).smdh
-	
 $(BUILD):
+	@echo $(SFILES)
 	@[ -d $@ ] || mkdir -p $@
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
 	@rm -fr $(OUTPUT).elf
- 
+
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).bin
-	@make clean --no-print-directory -C $(TOPDIR)/$(LOADER) -f $(TOPDIR)/$(LOADER)/Makefile
-	@rm -fr $(OUTPUT_D)
- 
+	@rm -fr $(BUILD) $(OUTPUT_D)
+
+
 #---------------------------------------------------------------------------------
 else
- 
+
 DEPENDS	:=	$(OFILES:.o=.d)
- 
+
 #---------------------------------------------------------------------------------
 # main targets
 #---------------------------------------------------------------------------------
-
-$(OUTPUT).bin	:	$(OUTPUT).elf
+ifeq ($(strip $(NO_SMDH)),)
+.PHONY: all
+all	:	$(OUTPUT).3dsx $(OUTPUT).smdh
+endif
+cpu.o cpu_threaded.o: CFLAGS += -Wno-unused-variable -Wno-unused-label
+$(OUTPUT).3dsx	:	$(OUTPUT).elf
 $(OUTPUT).elf	:	$(OFILES)
 
-
 #---------------------------------------------------------------------------------
-%.bin: %.elf
-	@$(OBJCOPY) -O binary $< $@
-	@echo built ... $(notdir $@)
- 
+# you need a rule like this for each extension you use as binary data
+#---------------------------------------------------------------------------------
+%.bin.o	:	%.bin
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@$(bin2o)
+
+# WARNING: This is not the right way to do this! TODO: Do it right!
+#---------------------------------------------------------------------------------
+%.vsh.o	:	%.vsh
+#---------------------------------------------------------------------------------
+	@echo $(notdir $<)
+	@python $(AEMSTRO)/aemstro_as.py $< ../$(notdir $<).shbin
+	@bin2s ../$(notdir $<).shbin | $(PREFIX)as -o $@
+	@echo "extern const u8" `(echo $(notdir $<).shbin | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"_end[];" > `(echo $(notdir $<).shbin | tr . _)`.h
+	@echo "extern const u8" `(echo $(notdir $<).shbin | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`"[];" >> `(echo $(notdir $<).shbin | tr . _)`.h
+	@echo "extern const u32" `(echo $(notdir $<).shbin | sed -e 's/^\([0-9]\)/_\1/' | tr . _)`_size";" >> `(echo $(notdir $<).shbin | tr . _)`.h
+	@rm ../$(notdir $<).shbin
 
 -include $(DEPENDS)
 
- 
 #---------------------------------------------------------------------------------------
 endif
 #---------------------------------------------------------------------------------------
