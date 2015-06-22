@@ -1,6 +1,4 @@
 #include <3ds.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include "brahma.h"
 
 
@@ -13,6 +11,8 @@ s32 main (void) {
 	sdmcInit();
 	hbInit();
 	qtmInit();
+	
+	gfxSwapBuffers();
 	
 	if (brahma_init()) {
 		load_arm9_payload(PAYLOAD);
