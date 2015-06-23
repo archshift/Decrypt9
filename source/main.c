@@ -12,7 +12,8 @@
 
 void ClearTop()
 {
-    ClearScreen(TOP_SCREEN, RGB(255, 255, 255));
+    ClearScreen(TOP_SCREEN0, RGB(255, 255, 255));
+    ClearScreen(TOP_SCREEN1, RGB(255, 255, 255));
     current_y = 0;
 }
 
@@ -27,10 +28,12 @@ int main()
     ClearTop();
     InitFS();
 
+	Debug("");
     Debug("A: NCCH Padgen");
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
     Debug("Y: NAND Padgen");
+	Debug("R: NAND Dump");
     Debug("");
     Debug("START: Reboot");
     Debug("");
@@ -56,7 +59,9 @@ int main()
             Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_START) {
-            goto reboot;
+            DeinitFS();
+            Reboot();
+            return 0;
         }
     }
 
@@ -67,7 +72,6 @@ int main()
             break;
     }
 
-reboot:
     DeinitFS();
     Reboot();
     return 0;
