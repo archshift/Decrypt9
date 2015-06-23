@@ -33,7 +33,6 @@ int main()
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
     Debug("Y: NAND Padgen");
-	Debug("R: NAND Dump");
     Debug("");
     Debug("START: Reboot");
     Debug("");
