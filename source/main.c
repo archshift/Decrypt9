@@ -28,6 +28,7 @@ int main()
     ClearTop();
     InitFS();
 
+	Debug("");
     Debug("A: NCCH Padgen");
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
@@ -57,7 +58,9 @@ int main()
             Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_START) {
-            goto reboot;
+            DeinitFS();
+            Reboot();
+            return 0;
         }
     }
 
@@ -68,7 +71,6 @@ int main()
             break;
     }
 
-reboot:
     DeinitFS();
     Reboot();
     return 0;
