@@ -7,6 +7,9 @@
 #include "decryptor/crypto.h"
 #include "sha256.h"
 
+#define BUFFER_ADDRESS  ((u8*) 0x21000000)
+#define BUFFER_MAX_SIZE (1 * 1024 * 1024)
+
 u32 NcchPadgen()
 {
     size_t bytesRead;
@@ -18,7 +21,7 @@ u32 NcchPadgen()
     if (FileOpen("/slot0x25KeyX.bin")) {
         u8 slot0x25KeyX[16] = {0};
         Debug("Opening slot0x25KeyX.bin ...");
-        
+
         bytesRead = FileRead(&slot0x25KeyX, 16, 0);
         FileClose();
         if (bytesRead != 16) {
@@ -30,7 +33,7 @@ u32 NcchPadgen()
         Debug("Warning, not using slot0x25KeyX.bin");
         Debug("7.x game decryption will fail on less than 7.x!");
     }
-    
+
     if (FileOpen("/seeddb.bin")) {
         Debug("Opening seeddb.bin ...");
         bytesRead = FileRead(seedinfo, 16, 0);
@@ -83,7 +86,7 @@ u32 NcchPadgen()
                 Debug("Failed to find seed in seeddb.bin");
                 return 0;
             }
-	    u8 sha256sum[32];
+        u8 sha256sum[32];
             sha256_context shactx;
             sha256_starts(&shactx);
             sha256_update(&shactx, keydata, 32);
@@ -215,8 +218,8 @@ u32 NandPadgen()
 
     add_ctr(ctr, 0xB93000); //The CTR stored in memory would theoretically be for NAND block 0, so we need to increment it some.
 
-    u32 keyslot;
-    u32 nand_size;
+    u32 keyslot = 0x0;
+    u32 nand_size = 0;
     switch (GetUnitPlatform()) {
         case PLATFORM_3DS:
             keyslot = 0x4;
@@ -243,12 +246,11 @@ u32 NandPadgen()
     }
 }
 
-static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
-
 u32 CreatePad(PadInfo *info)
 {
-#define BUFFER_ADDR ((volatile u8*)0x21000000)
-#define BLOCK_SIZE  (4*1024*1024)
+    static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
+
+    u8* buffer = BUFFER_ADDRESS;
     size_t bytesWritten;
 
     if (!FileCreate(info->filename, true))
@@ -262,19 +264,18 @@ u32 CreatePad(PadInfo *info)
     memcpy(ctr, info->CTR, 16);
 
     u32 size_bytes = info->size_mb * 1024*1024;
-    u32 size_100 = size_bytes / 100;
-    for (u32 i = 0; i < size_bytes; i += BLOCK_SIZE) {
-        u32 curr_block_size = min(BLOCK_SIZE, size_bytes - i);
+    for (u32 i = 0; i < size_bytes; i += BUFFER_MAX_SIZE) {
+        u32 curr_block_size = min(BUFFER_MAX_SIZE, size_bytes - i);
 
         for (u32 j = 0; j < curr_block_size; j+= 16) {
             set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
-            aes_decrypt((void*)zero_buf, (void*)BUFFER_ADDR + j, ctr, 1, AES_CTR_MODE);
+            aes_decrypt((void*)zero_buf, (void*)buffer + j, ctr, 1, AES_CTR_MODE);
             add_ctr(ctr, 1);
         }
 
-        DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "%i%%", (i + curr_block_size) / size_100);
+        ShowProgress(i, size_bytes);
 
-        bytesWritten = FileWrite((void*)BUFFER_ADDR, curr_block_size, i);
+        bytesWritten = FileWrite((void*)buffer, curr_block_size, i);
         if (bytesWritten != curr_block_size) {
             Debug("ERROR, SD card may be full.");
             FileClose();
@@ -282,9 +283,8 @@ u32 CreatePad(PadInfo *info)
         }
     }
 
-    DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "    ");
+    ShowProgress(0, 0);
     FileClose();
+
     return 0;
-#undef BUFFER_ADDR
-#undef BLOCK_SIZE
 }
