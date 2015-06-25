@@ -7,8 +7,7 @@
 #include "fs.h"
 #include "hid.h"
 #include "i2c.h"
-#include "decryptor/padgen.h"
-#include "decryptor/titlekey.h"
+#include "decryptor/features.h"
 
 
 void Reboot()

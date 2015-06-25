@@ -3,12 +3,96 @@
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/padgen.h"
-#include "decryptor/crypto.h"
+#include "features.h"
+#include "padgen.h"
+#include "crypto.h"
 #include "sha256.h"
 
-#define BUFFER_ADDRESS	((u8*) 0x21000000)
-#define BUFFER_MAX_SIZE	(1 * 1024 * 1024)
+
+// From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
+static const u8 common_keyy[6][16] = {
+    {0xD0, 0x7B, 0x33, 0x7F, 0x9C, 0xA4, 0x38, 0x59, 0x32, 0xA2, 0xE2, 0x57, 0x23, 0x23, 0x2E, 0xB9} , // 0 - eShop Titles
+    {0x0C, 0x76, 0x72, 0x30, 0xF0, 0x99, 0x8F, 0x1C, 0x46, 0x82, 0x82, 0x02, 0xFA, 0xAC, 0xBE, 0x4C} , // 1 - System Titles
+    {0xC4, 0x75, 0xCB, 0x3A, 0xB8, 0xC7, 0x88, 0xBB, 0x57, 0x5E, 0x12, 0xA1, 0x09, 0x07, 0xB8, 0xA4} , // 2
+    {0xE4, 0x86, 0xEE, 0xE3, 0xD0, 0xC0, 0x9C, 0x90, 0x2F, 0x66, 0x86, 0xD4, 0xC0, 0x6F, 0x64, 0x9F} , // 3
+    {0xED, 0x31, 0xBA, 0x9C, 0x04, 0xB0, 0x67, 0x50, 0x6C, 0x44, 0x97, 0xA3, 0x5B, 0x78, 0x04, 0xFC} , // 4
+    {0x5E, 0x66, 0x99, 0x8A, 0xB4, 0xE8, 0x93, 0x16, 0x06, 0x85, 0x0F, 0xD7, 0xA1, 0x6D, 0xD7, 0x55} , // 5
+};
+
+
+static u8* FindNandCtr()
+{
+    static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
+    static const u8* version_ctrs[] = {
+        (u8*)0x080D7CAC,
+        (u8*)0x080D858C,
+        (u8*)0x080D748C,
+        (u8*)0x080D740C,
+        (u8*)0x080D74CC,
+        (u8*)0x080D794C
+    };
+    static const u32 version_ctrs_len = sizeof(version_ctrs) / sizeof(u32);
+
+    for (u32 i = 0; i < version_ctrs_len; i++) {
+        if (*(u32*)version_ctrs[i] == 0x5C980) {
+            Debug("System version %s", versions[i]);
+            return (u8*)(version_ctrs[i] + 0x30);
+        }
+    }
+
+    // If value not in previous list start memory scanning (test range)
+    for (u8* c = (u8*)0x080D8FFF; c > (u8*)0x08000000; c--) {
+        if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
+            Debug("CTR Start 0x%08X", c + 0x30);
+            return c + 0x30;
+        }
+    }
+
+    return NULL;
+}
+
+u32 CreatePad(PadInfo *info)
+{
+	static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
+
+	u8* buffer = BUFFER_ADDRESS;
+    size_t bytesWritten;
+
+    if (!FileCreate(info->filename, true))
+        return 1;
+
+    if(info->setKeyY)
+        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, info->keyY);
+    use_aeskey(info->keyslot);
+
+    u8 ctr[16] __attribute__((aligned(32)));
+    memcpy(ctr, info->CTR, 16);
+
+    u32 size_bytes = info->size_mb * 1024*1024;
+    for (u32 i = 0; i < size_bytes; i += BUFFER_MAX_SIZE) {
+        u32 curr_block_size = min(BUFFER_MAX_SIZE, size_bytes - i);
+
+        for (u32 j = 0; j < curr_block_size; j+= 16) {
+            set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
+            aes_decrypt((void*)zero_buf, (void*)buffer + j, ctr, 1, AES_CTR_MODE);
+            add_ctr(ctr, 1);
+        }
+
+		ShowProgress(i, size_bytes);
+
+        bytesWritten = FileWrite((void*)buffer, curr_block_size, i);
+        if (bytesWritten != curr_block_size) {
+            Debug("ERROR, SD card may be full.");
+            FileClose();
+            return 1;
+        }
+    }
+
+	ShowProgress(0, 0);
+    FileClose();
+	
+    return 0;
+}
 
 u32 NcchPadgen()
 {
@@ -37,7 +121,7 @@ u32 NcchPadgen()
     if (FileOpen("/seeddb.bin")) {
         Debug("Opening seeddb.bin ...");
         bytesRead = FileRead(seedinfo, 16, 0);
-        if (!seedinfo->n_entries || seedinfo->n_entries > MAXENTRIES) {
+        if (!seedinfo->n_entries || seedinfo->n_entries > MAX_ENTRIES) {
             Debug("Too many/few seeddb entries.");
             return 0;
         }
@@ -55,7 +139,7 @@ u32 NcchPadgen()
     }
     bytesRead = FileRead(info, 16, 0);
 
-    if (!info->n_entries || info->n_entries > MAXENTRIES || (info->ncch_info_version != 0xF0000004)) {
+    if (!info->n_entries || info->n_entries > MAX_ENTRIES || (info->ncch_info_version != 0xF0000004)) {
         Debug("Too many/few entries, or wrong version ncchinfo.bin");
         return 0;
     }
@@ -147,7 +231,7 @@ u32 SdPadgen()
     }
     bytesRead = FileRead(info, 4, 0);
 
-    if (!info->n_entries || info->n_entries > MAXENTRIES) {
+    if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
         Debug("Too many/few entries!");
         return 1;
     }
@@ -172,37 +256,6 @@ u32 SdPadgen()
     }
 
     return 0;
-}
-
-static u8* FindNandCtr()
-{
-    static const char* versions[] = {"4.x", "5.x", "6.x", "7.x", "8.x", "9.x"};
-    static const u8* version_ctrs[] = {
-        (u8*)0x080D7CAC,
-        (u8*)0x080D858C,
-        (u8*)0x080D748C,
-        (u8*)0x080D740C,
-        (u8*)0x080D74CC,
-        (u8*)0x080D794C
-    };
-    static const u32 version_ctrs_len = sizeof(version_ctrs) / sizeof(u32);
-
-    for (u32 i = 0; i < version_ctrs_len; i++) {
-        if (*(u32*)version_ctrs[i] == 0x5C980) {
-            Debug("System version %s", versions[i]);
-            return (u8*)(version_ctrs[i] + 0x30);
-        }
-    }
-
-    // If value not in previous list start memory scanning (test range)
-    for (u8* c = (u8*)0x080D8FFF; c > (u8*)0x08000000; c--) {
-        if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
-            Debug("CTR Start 0x%08X", c + 0x30);
-            return c + 0x30;
-        }
-    }
-
-    return NULL;
 }
 
 u32 NandPadgen()
@@ -246,45 +299,51 @@ u32 NandPadgen()
     }
 }
 
-u32 CreatePad(PadInfo *info)
+u32 DecryptTitlekeys(void)
 {
-	static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
-
-	u8* buffer = BUFFER_ADDRESS;
-    size_t bytesWritten;
-
-    if (!FileCreate(info->filename, true))
-        return 1;
-
-    if(info->setKeyY)
-        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, info->keyY);
-    use_aeskey(info->keyslot);
-
-    u8 ctr[16] __attribute__((aligned(32)));
-    memcpy(ctr, info->CTR, 16);
-
-    u32 size_bytes = info->size_mb * 1024*1024;
-    for (u32 i = 0; i < size_bytes; i += BUFFER_MAX_SIZE) {
-        u32 curr_block_size = min(BUFFER_MAX_SIZE, size_bytes - i);
-
-        for (u32 j = 0; j < curr_block_size; j+= 16) {
-            set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
-            aes_decrypt((void*)zero_buf, (void*)buffer + j, ctr, 1, AES_CTR_MODE);
-            add_ctr(ctr, 1);
-        }
-
-		ShowProgress(i, size_bytes);
-
-        bytesWritten = FileWrite((void*)buffer, curr_block_size, i);
-        if (bytesWritten != curr_block_size) {
-            Debug("ERROR, SD card may be full.");
-            FileClose();
-            return 1;
-        }
-    }
-
-	ShowProgress(0, 0);
-    FileClose();
+	EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 	
-    return 0;
+	Debug("Opening encTitleKeys.bin ...");
+	if(!FileOpen("/encTitleKeys.bin"))
+	{
+		Debug("Could not open encTitleKeys.bin!");
+		return 1;
+	}
+	FileRead(info, 16, 0);
+	
+	if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
+		Debug("Too many/few entries specified: %i", info->n_entries);
+		FileClose();
+		return 1;
+	}
+	
+	Debug("Number of entries: %i", info->n_entries);
+	
+	FileRead(info->entries, info->n_entries * sizeof(TitleKeyEntry), 16);
+	FileClose();
+	
+	Debug("Decrypting Title Keys...");
+	
+	u8 ctr[16] __attribute__((aligned(32)));
+	u8 keyY[16] __attribute__((aligned(32)));
+	u32 i;
+	for(i = 0; i < info->n_entries; i++) {
+		memset(ctr, 0, 16);
+		memcpy(ctr, info->entries[i].titleId, 8);
+		set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
+		memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
+		setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
+		use_aeskey(0x3D);
+		aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CBC_DECRYPT_MODE);
+	}
+
+	if(!FileCreate("/decTitleKeys.bin", true))
+		return 1;
+
+    FileWrite(info, info->n_entries * sizeof(TitleKeyEntry) + 16, 0);
+	FileClose();
+	
+	Debug("Done!");
+	
+	return 0;
 }
