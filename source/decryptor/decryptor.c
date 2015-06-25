@@ -4,7 +4,7 @@
 #include "draw.h"
 #include "platform.h"
 #include "features.h"
-#include "padgen.h"
+#include "decryptor.h"
 #include "crypto.h"
 #include "sha256.h"
 
