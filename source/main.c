@@ -10,12 +10,6 @@
 #include "decryptor/padgen.h"
 #include "decryptor/titlekey.h"
 
-void ClearTop()
-{
-    ClearScreen(TOP_SCREEN0, RGB(255, 255, 255));
-    ClearScreen(TOP_SCREEN1, RGB(255, 255, 255));
-    current_y = 0;
-}
 
 void Reboot()
 {
@@ -25,7 +19,7 @@ void Reboot()
 
 int main()
 {
-    ClearTop();
+    DebugClear();
     InitFS();
 
     Debug("A: NCCH Padgen");
@@ -41,23 +35,25 @@ int main()
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
-            ClearTop();
+			DebugClear();
             Debug("NCCH Padgen: %s!", NcchPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_B) {
-            ClearTop();
+			DebugClear();
             Debug("SD Padgen: %s!", SdPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_X) {
-            ClearTop();
+			DebugClear();
             Debug("Titlekey Decryption: %s!", DecryptTitlekeys() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_Y) {
-            ClearTop();
+			DebugClear();
             Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_START) {
-            goto reboot;
+            DeinitFS();
+            Reboot();
+            return 0;
         }
     }
 
@@ -68,7 +64,6 @@ int main()
             break;
     }
 
-reboot:
     DeinitFS();
     Reboot();
     return 0;
