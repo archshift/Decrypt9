@@ -2,5 +2,6 @@ Launcher.dat
 Decrypt9.bin
 Decrypt9.elf
 /build
+/output
 
 .DS_Store
