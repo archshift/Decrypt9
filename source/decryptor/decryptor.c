@@ -347,3 +347,27 @@ u32 DecryptTitlekeys(void)
 	
 	return 0;
 }
+
+u32 NandDumper() {
+	u8* buffer = BUFFER_ADDRESS;
+	u32 nand_size = 0;
+	
+	nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
+	
+	Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
+    Debug("Filename: NAND.bin");
+
+	if (!FileCreate("/NAND.bin", true)) return 1;
+	
+	u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
+	for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+		ShowProgress(i, n_sectors);
+		sdmmc_nand_readsectors(i, SECTORS_PER_READ, buffer);
+		FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
+	}
+	
+	ShowProgress(0, 0);
+	FileClose();
+	
+	return 0;
+}

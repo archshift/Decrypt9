@@ -5,6 +5,9 @@
 #define BUFFER_ADDRESS	((u8*) 0x21000000)
 #define BUFFER_MAX_SIZE	(1 * 1024 * 1024)
 
+#define NAND_SECTOR_SIZE 0x200
+#define SECTORS_PER_READ (BUFFER_MAX_SIZE / NAND_SECTOR_SIZE)
+
 #define MAX_ENTRIES 1024
 
 typedef struct {
