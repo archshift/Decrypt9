@@ -51,11 +51,36 @@ static u8* FindNandCtr()
     return NULL;
 }
 
+u32 DecryptBuffer(DecryptBufferInfo *info)
+{
+    u8 ctr[16] __attribute__((aligned(32)));
+    memcpy(ctr, info->CTR, 16);
+    
+    u8* buffer = info->buffer;
+    u32 size = info->size;
+    
+    if(info->setKeyY) {
+        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, info->keyY);
+        info->setKeyY = 0;
+    }
+    use_aeskey(info->keyslot);
+
+   for (u32 i = 0; i < size; i += 0x10, buffer += 0x10) {
+        set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
+        aes_decrypt((void*) buffer, (void*) buffer, ctr, 1, AES_CTR_MODE);
+        add_ctr(ctr, 0x1);
+    }
+    
+    memcpy(info->CTR, ctr, 16);
+    
+    return 0;
+}
+
 u32 CreatePad(PadInfo *info)
 {
-	static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
+    static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
 
-	u8* buffer = BUFFER_ADDRESS;
+    u8* buffer = BUFFER_ADDRESS;
     size_t bytesWritten;
 
     if (!FileCreate(info->filename, true))
@@ -78,7 +103,7 @@ u32 CreatePad(PadInfo *info)
             add_ctr(ctr, 1);
         }
 
-		ShowProgress(i, size_bytes);
+        ShowProgress(i, size_bytes);
 
         bytesWritten = FileWrite((void*)buffer, curr_block_size, i);
         if (bytesWritten != curr_block_size) {
@@ -88,9 +113,45 @@ u32 CreatePad(PadInfo *info)
         }
     }
 
-	ShowProgress(0, 0);
+    ShowProgress(0, 0);
     FileClose();
-	
+    
+    return 0;
+}
+
+u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot) {
+    DecryptBufferInfo info;
+    u8* buffer = BUFFER_ADDRESS;
+    u8* ctrStart = FindNandCtr();
+    
+    Debug("Dumping System NAND Partition. Size (MB): %u", size / (1024 * 1024));
+    Debug("Filename: %s", filename);
+    
+    if (ctrStart == NULL)
+        return 1;
+    
+    info.keyslot = keyslot;
+    info.setKeyY = 0;
+    info.size = SECTORS_PER_READ * NAND_SECTOR_SIZE;
+    info.buffer = buffer;
+    for(u32 i = 0; i < 16; i++)
+        info.CTR[i] = *(ctrStart + (0xF - i)); // The CTR is stored backwards in memory.
+    add_ctr(info.CTR, offset / 0x10);
+    
+    if (!FileCreate(filename, true)) return 1;
+    
+    u32 n_sectors = size / NAND_SECTOR_SIZE;
+    u32 start_sector = offset / NAND_SECTOR_SIZE;
+    for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        ShowProgress(i, n_sectors);
+        sdmmc_nand_readsectors(start_sector + i, SECTORS_PER_READ, buffer);
+        DecryptBuffer(&info);
+        FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
+    }
+    
+    ShowProgress(0, 0);
+    FileClose();
+    
     return 0;
 }
 
@@ -170,7 +231,7 @@ u32 NcchPadgen()
                 Debug("Failed to find seed in seeddb.bin");
                 return 0;
             }
-	    u8 sha256sum[32];
+        u8 sha256sum[32];
             sha256_context shactx;
             sha256_starts(&shactx);
             sha256_update(&shactx, keydata, 32);
@@ -301,73 +362,86 @@ u32 NandPadgen()
 
 u32 DecryptTitlekeys(void)
 {
-	EncKeysInfo *info = (EncKeysInfo*)0x20316000;
-	
-	Debug("Opening encTitleKeys.bin ...");
-	if(!FileOpen("/encTitleKeys.bin"))
-	{
-		Debug("Could not open encTitleKeys.bin!");
-		return 1;
-	}
-	FileRead(info, 16, 0);
-	
-	if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
-		Debug("Too many/few entries specified: %i", info->n_entries);
-		FileClose();
-		return 1;
-	}
-	
-	Debug("Number of entries: %i", info->n_entries);
-	
-	FileRead(info->entries, info->n_entries * sizeof(TitleKeyEntry), 16);
-	FileClose();
-	
-	Debug("Decrypting Title Keys...");
-	
-	u8 ctr[16] __attribute__((aligned(32)));
-	u8 keyY[16] __attribute__((aligned(32)));
-	u32 i;
-	for(i = 0; i < info->n_entries; i++) {
-		memset(ctr, 0, 16);
-		memcpy(ctr, info->entries[i].titleId, 8);
-		set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
-		memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
-		setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
-		use_aeskey(0x3D);
-		aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CBC_DECRYPT_MODE);
-	}
+    EncKeysInfo *info = (EncKeysInfo*)0x20316000;
+    
+    Debug("Opening encTitleKeys.bin ...");
+    if(!FileOpen("/encTitleKeys.bin"))
+    {
+        Debug("Could not open encTitleKeys.bin!");
+        return 1;
+    }
+    FileRead(info, 16, 0);
+    
+    if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
+        Debug("Too many/few entries specified: %i", info->n_entries);
+        FileClose();
+        return 1;
+    }
+    
+    Debug("Number of entries: %i", info->n_entries);
+    
+    FileRead(info->entries, info->n_entries * sizeof(TitleKeyEntry), 16);
+    FileClose();
+    
+    Debug("Decrypting Title Keys...");
+    
+    u8 ctr[16] __attribute__((aligned(32)));
+    u8 keyY[16] __attribute__((aligned(32)));
+    u32 i;
+    for(i = 0; i < info->n_entries; i++) {
+        memset(ctr, 0, 16);
+        memcpy(ctr, info->entries[i].titleId, 8);
+        set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
+        memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
+        setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
+        use_aeskey(0x3D);
+        aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CBC_DECRYPT_MODE);
+    }
 
-	if(!FileCreate("/decTitleKeys.bin", true))
-		return 1;
+    if(!FileCreate("/decTitleKeys.bin", true))
+        return 1;
 
     FileWrite(info, info->n_entries * sizeof(TitleKeyEntry) + 16, 0);
-	FileClose();
-	
-	Debug("Done!");
-	
-	return 0;
+    FileClose();
+    
+    Debug("Done!");
+    
+    return 0;
 }
 
 u32 NandDumper() {
-	u8* buffer = BUFFER_ADDRESS;
-	u32 nand_size = 0;
-	
-	nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
-	
-	Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
+    u8* buffer = BUFFER_ADDRESS;
+    u32 nand_size = 0;
+    
+    nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
+    
+    Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
     Debug("Filename: NAND.bin");
 
-	if (!FileCreate("/NAND.bin", true)) return 1;
-	
-	u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
-	for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
-		ShowProgress(i, n_sectors);
-		sdmmc_nand_readsectors(i, SECTORS_PER_READ, buffer);
-		FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
-	}
-	
-	ShowProgress(0, 0);
-	FileClose();
-	
-	return 0;
+    if (!FileCreate("/NAND.bin", true)) return 1;
+    
+    u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
+    for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        ShowProgress(i, n_sectors);
+        sdmmc_nand_readsectors(i, SECTORS_PER_READ, buffer);
+        FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
+    }
+    
+    ShowProgress(0, 0);
+    FileClose();
+    
+    return 0;
+}
+
+u32 NandPartitionsDumper() {
+    // see: http://3dbrew.org/wiki/Flash_Filesystem 
+    Debug("Dump firm0.bin: %s!", DumpPartition("firm0.bin", 0x0B130000, 0x00400000, 0x6) == 0 ? "succeeded" : "failed");
+    Debug("Dump firm1.bin: %s!", DumpPartition("firm1.bin", 0x0B530000, 0x00400000, 0x6) == 0 ? "succeeded" : "failed");
+    if(GetUnitPlatform() == PLATFORM_3DS) {
+        Debug("Dump ctrnand.bin: %s!", DumpPartition("ctrnand.bin", 0x0B95CA00, 0x2F3E3600, 0x4) == 0 ? "succeeded" : "failed");
+    } else {
+        Debug("Dump ctrnand.bin: %s!", DumpPartition("ctrnand.bin", 0x0B95AE00, 0x41D2D200, 0x5) == 0 ? "succeeded" : "failed");
+    }
+    
+    return 0;
 }
