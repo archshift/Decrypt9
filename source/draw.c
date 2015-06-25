@@ -10,7 +10,11 @@
 #include "font.h"
 #include "draw.h"
 
-int current_y = 0;
+#define BG_COLOR	RGB(0x00, 0x00, 0x00)
+#define FONT_COLOR	RGB(0xFF, 0xFF, 0xFF)
+#define START_Y		10
+#define END_Y		230
+int current_y = START_Y;
 
 void ClearScreen(unsigned char *screen, int color)
 {
@@ -63,8 +67,15 @@ void DrawStringF(int x, int y, const char *format, ...)
     vsnprintf(str, 256, format, va);
     va_end(va);
 
-    DrawString(TOP_SCREEN0, str, x, y, RGB(0, 0, 0), RGB(255, 255, 255));
-    DrawString(TOP_SCREEN1, str, x, y, RGB(0, 0, 0), RGB(255, 255, 255));
+    DrawString(TOP_SCREEN0, str, x, y, FONT_COLOR, BG_COLOR);
+    DrawString(TOP_SCREEN1, str, x, y, FONT_COLOR, BG_COLOR);
+}
+
+void DebugClear()
+{
+	ClearScreen(TOP_SCREEN0, BG_COLOR);
+    ClearScreen(TOP_SCREEN1, BG_COLOR);
+    current_y = START_Y;
 }
 
 void Debug(const char *format, ...)
@@ -75,9 +86,19 @@ void Debug(const char *format, ...)
     va_start(va, format);
     vsnprintf(str, 256, format, va);
     va_end(va);
+	
+	if (current_y >= END_Y) {
+        DebugClear();
+    }
 
-    DrawString(TOP_SCREEN0, str, 10, current_y, RGB(0, 0, 0), RGB(255, 255, 255));
-    DrawString(TOP_SCREEN1, str, 10, current_y, RGB(0, 0, 0), RGB(255, 255, 255));
+    DrawString(TOP_SCREEN0, str, 10, current_y, FONT_COLOR, BG_COLOR);
+    DrawString(TOP_SCREEN1, str, 10, current_y, FONT_COLOR, BG_COLOR);
 
     current_y += 10;
+}
+
+void ShowProgress(u32 current, u32 total)
+{
+	if(total > 0 ) DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "%i%%", current / (total/100));
+	else DrawStringF(SCREEN_HEIGHT - 40, SCREEN_WIDTH - 20, "    ");
 }

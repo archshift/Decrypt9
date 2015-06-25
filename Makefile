@@ -58,7 +58,8 @@ LIBDIRS	:=
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 #---------------------------------------------------------------------------------
  
-export OUTPUT	:=	$(CURDIR)/$(TARGET)
+export OUTPUT_D	:=	$(CURDIR)/output
+export OUTPUT	:=	$(OUTPUT_D)/$(TARGET)
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -96,18 +97,21 @@ export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 .PHONY: $(BUILD) clean all
  
 #---------------------------------------------------------------------------------
-all: $(BUILD)
+all: $(OUTPUT_D) $(BUILD)
+
+$(OUTPUT_D):
+	@[ -d $@ ] || mkdir -p $@
 
 $(BUILD):
 	@[ -d $@ ] || mkdir -p $@
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile
-	cp tools/LauncherTemplate.dat Launcher.dat
-	python tools/insert.py Launcher.dat $(OUTPUT).bin 0x16D8D0
+	cp tools/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
+	python tools/insert.py $(OUTPUT_D)/Launcher.dat $(OUTPUT).bin 0x16D8D0
  
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
-	@rm -fr $(BUILD) $(OUTPUT).elf $(OUTPUT).bin Launcher.dat
+	@rm -fr $(BUILD) $(OUTPUT_D)
  
  
 #---------------------------------------------------------------------------------

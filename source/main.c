@@ -7,15 +7,8 @@
 #include "fs.h"
 #include "hid.h"
 #include "i2c.h"
-#include "decryptor/padgen.h"
-#include "decryptor/titlekey.h"
+#include "decryptor/features.h"
 
-void ClearTop()
-{
-    ClearScreen(TOP_SCREEN0, RGB(255, 255, 255));
-    ClearScreen(TOP_SCREEN1, RGB(255, 255, 255));
-    current_y = 0;
-}
 
 void Reboot()
 {
@@ -25,13 +18,15 @@ void Reboot()
 
 int main()
 {
-    ClearTop();
+    DebugClear();
     InitFS();
 
     Debug("A: NCCH Padgen");
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
     Debug("Y: NAND Padgen");
+	Debug("L: NAND Partition Dump");
+	Debug("R: NAND Dump");
     Debug("");
     Debug("START: Reboot");
     Debug("");
@@ -41,23 +36,33 @@ int main()
     while (true) {
         u32 pad_state = InputWait();
         if (pad_state & BUTTON_A) {
-            ClearTop();
+			DebugClear();
             Debug("NCCH Padgen: %s!", NcchPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_B) {
-            ClearTop();
+			DebugClear();
             Debug("SD Padgen: %s!", SdPadgen() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_X) {
-            ClearTop();
+			DebugClear();
             Debug("Titlekey Decryption: %s!", DecryptTitlekeys() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_Y) {
-            ClearTop();
+			DebugClear();
             Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
             break;
+        }  else if (pad_state & BUTTON_L1) {
+			DebugClear();
+			Debug("NAND Partition Dump: %s!", NandPartitionsDumper() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_R1) {
+			DebugClear();
+			Debug("NAND Dump: %s!", NandDumper() == 0 ? "succeeded" : "failed");
+            break;
         } else if (pad_state & BUTTON_START) {
-            goto reboot;
+            DeinitFS();
+            Reboot();
+            return 0;
         }
     }
 
@@ -68,7 +73,6 @@ int main()
             break;
     }
 
-reboot:
     DeinitFS();
     Reboot();
     return 0;

@@ -24,3 +24,5 @@ size_t FileGetSize();
 uint64_t RemainingStorageSpace();
 
 void FileClose();
+
+int sdmmc_nand_readsectors(u32 sector_no, u32 numsectors, u8 *out);
