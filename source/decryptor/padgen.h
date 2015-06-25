@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#define MAXENTRIES 1024
+#define MAX_ENTRIES 1024
 
 typedef struct {
     u8   CTR[16];
@@ -12,9 +12,8 @@ typedef struct {
 
 typedef struct {
     u32 n_entries;
-    SdInfoEntry entries[MAXENTRIES];
+    SdInfoEntry entries[MAX_ENTRIES];
 } __attribute__((packed, aligned(16))) SdInfo;
-
 
 typedef struct {
     u8   CTR[16];
@@ -32,7 +31,7 @@ typedef struct {
     u32 ncch_info_version;
     u32 n_entries;
     u8  reserved[4];
-    NcchInfoEntry entries[MAXENTRIES];
+    NcchInfoEntry entries[MAX_ENTRIES];
 } __attribute__((packed, aligned(16))) NcchInfo;
 
 typedef struct {
@@ -44,9 +43,8 @@ typedef struct {
 typedef struct {
     u32 n_entries;
     u8 padding[12];
-    SeedInfoEntry entries[MAXENTRIES];
+    SeedInfoEntry entries[MAX_ENTRIES];
 } __attribute__((packed)) SeedInfo;
-
 
 typedef struct {
     u32  keyslot;
@@ -57,9 +55,17 @@ typedef struct {
     char filename[180];
 } __attribute__((packed, aligned(16))) PadInfo;
 
+typedef struct {
+    u32 commonKeyIndex;
+    u8  reserved[4];
+    u8  titleId[8];
+    u8  encryptedTitleKey[16];
+} __attribute__((packed)) TitleKeyEntry;
 
-u32 NcchPadgen(void);
-u32 SdPadgen(void);
-u32 NandPadgen(void);
+typedef struct {
+    u32 n_entries;
+    u8  reserved[12];
+    TitleKeyEntry entries[MAX_ENTRIES];
+} __attribute__((packed, aligned(16))) EncKeysInfo;
 
 u32 CreatePad(PadInfo *info);
