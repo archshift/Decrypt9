@@ -11,6 +11,9 @@
 #define BUFFER_ADDRESS  ((u8*) 0x21000000)
 #define BUFFER_MAX_SIZE (1 * 1024 * 1024)
 
+#define NAND_SECTOR_SIZE 0x200
+#define SECTORS_PER_READ (BUFFER_MAX_SIZE / NAND_SECTOR_SIZE)
+
 // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
 static const u8 common_keyy[6][16] = {
     {0xD0, 0x7B, 0x33, 0x7F, 0x9C, 0xA4, 0x38, 0x59, 0x32, 0xA2, 0xE2, 0x57, 0x23, 0x23, 0x2E, 0xB9} , // 0 - eShop Titles
@@ -340,6 +343,29 @@ u32 CreatePad(PadInfo *info)
             FileClose();
             return 1;
         }
+    }
+
+    ShowProgress(0, 0);
+    FileClose();
+
+    return 0;
+}
+
+u32 NandDumper() {
+    u8* buffer = BUFFER_ADDRESS;
+    u32 nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
+
+    Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
+    Debug("Filename: NAND.bin");
+
+    if (!FileCreate("/NAND.bin", true))
+        return 1;
+
+    u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
+    for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        ShowProgress(i, n_sectors);
+        sdmmc_nand_readsectors(i, SECTORS_PER_READ, buffer);
+        FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
     }
 
     ShowProgress(0, 0);
