@@ -24,6 +24,7 @@ int main()
     Debug("B: SD Padgen");
     Debug("X: Titlekey Decryption");
     Debug("Y: NAND Padgen");
+    Debug("L: NAND Partition Dump");
     Debug("R: NAND Dump");
     Debug("");
     Debug("START: Reboot");
@@ -48,6 +49,10 @@ int main()
         } else if (pad_state & BUTTON_Y) {
             DebugClear();
             Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_L1) {
+            DebugClear();
+            Debug("NAND Partition Dump: %s!", NandPartitionsDumper() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_R1) {
             DebugClear();

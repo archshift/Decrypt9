@@ -51,6 +51,15 @@ typedef struct {
     u32  setKeyY;
     u8   CTR[16];
     u8   keyY[16];
+    u32  size;
+    u8*  buffer;
+} __attribute__((packed)) DecryptBufferInfo;
+
+typedef struct {
+    u32  keyslot;
+    u32  setKeyY;
+    u8   CTR[16];
+    u8   keyY[16];
     u32  size_mb;
     char filename[180];
 } __attribute__((packed, aligned(16))) PadInfo;

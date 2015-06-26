@@ -24,6 +24,31 @@ static const u8 common_keyy[6][16] = {
     {0x5E, 0x66, 0x99, 0x8A, 0xB4, 0xE8, 0x93, 0x16, 0x06, 0x85, 0x0F, 0xD7, 0xA1, 0x6D, 0xD7, 0x55} , // 5
 };
 
+u32 DecryptBuffer(DecryptBufferInfo *info)
+{
+    u8 ctr[16] __attribute__((aligned(32)));
+    memcpy(ctr, info->CTR, 16);
+
+    u8* buffer = info->buffer;
+    u32 size = info->size;
+
+    if (info->setKeyY) {
+        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, info->keyY);
+        info->setKeyY = 0;
+    }
+    use_aeskey(info->keyslot);
+
+    for (u32 i = 0; i < size; i += 0x10, buffer += 0x10) {
+        set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
+        aes_decrypt((void*) buffer, (void*) buffer, ctr, 1, AES_CTR_MODE);
+        add_ctr(ctr, 0x1);
+    }
+
+    memcpy(info->CTR, ctr, 16);
+
+    return 0;
+}
+
 u32 DecryptTitlekeys(void)
 {
     EncKeysInfo *info = (EncKeysInfo*)0x20316000;
@@ -267,6 +292,45 @@ static u8* FindNandCtr()
     return NULL;
 }
 
+u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot) {
+    DecryptBufferInfo info;
+    u8* buffer = BUFFER_ADDRESS;
+    u8* ctrStart = FindNandCtr();
+
+    Debug("Dumping System NAND Partition. Size (MB): %u", size / (1024 * 1024));
+    Debug("Filename: %s", filename);
+
+    if (ctrStart == NULL)
+        return 1;
+
+    info.keyslot = keyslot;
+    info.setKeyY = 0;
+    info.size = SECTORS_PER_READ * NAND_SECTOR_SIZE;
+    info.buffer = buffer;
+    for (u32 i = 0; i < 16; i++) {
+        info.CTR[i] = *(ctrStart + (0xF - i)); // The CTR is stored backwards in memory.
+    }
+
+    add_ctr(info.CTR, offset / 0x10);
+
+    if (!FileCreate(filename, true))
+        return 1;
+
+    u32 n_sectors = size / NAND_SECTOR_SIZE;
+    u32 start_sector = offset / NAND_SECTOR_SIZE;
+    for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        ShowProgress(i, n_sectors);
+        sdmmc_nand_readsectors(start_sector + i, SECTORS_PER_READ, buffer);
+        DecryptBuffer(&info);
+        FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
+    }
+
+    ShowProgress(0, 0);
+    FileClose();
+
+    return 0;
+}
+
 u32 NandPadgen()
 {
     u8* ctrStart = FindNandCtr();
@@ -370,6 +434,32 @@ u32 NandDumper() {
 
     ShowProgress(0, 0);
     FileClose();
+
+    return 0;
+}
+
+u32 NandPartitionsDumper() {
+    u32 ctrnand_offset;
+    u32 ctrnand_size;
+    u32 keyslot;
+
+    switch (GetUnitPlatform()) {
+    case PLATFORM_3DS:
+        ctrnand_offset = 0x0B95CA00;
+        ctrnand_size = 0x2F3E3600;
+        keyslot = 0x4;
+        break;
+    case PLATFORM_N3DS:
+        ctrnand_offset = 0x0B95AE00;
+        ctrnand_size = 0x41D2D200;
+        keyslot = 0x5;
+        break;
+    }
+
+    // see: http://3dbrew.org/wiki/Flash_Filesystem
+    Debug("Dumping firm0.bin: %s!", DumpPartition("firm0.bin", 0x0B130000, 0x00400000, 0x6) == 0 ? "succeeded" : "failed");
+    Debug("Dumping firm1.bin: %s!", DumpPartition("firm1.bin", 0x0B530000, 0x00400000, 0x6) == 0 ? "succeeded" : "failed");
+    Debug("Dumping ctrnand.bin: %s!", DumpPartition("ctrnand.bin", ctrnand_offset, ctrnand_size, keyslot) == 0 ? "succeeded" : "failed");
 
     return 0;
 }
