@@ -58,16 +58,15 @@ void DrawString(u8* screen, const char *str, int x, int y, int color, int bgcolo
 
 void DrawStringF(int x, int y, const char *format, ...)
 {
-    char* str;
+    char str[256];
     va_list va;
 
     va_start(va, format);
-    vasprintf(&str, format, va);
+    vsnprintf(str, 256, format, va);
     va_end(va);
 
     DrawString(TOP_SCREEN0, str, x, y, FONT_COLOR, BG_COLOR);
     DrawString(TOP_SCREEN1, str, x, y, FONT_COLOR, BG_COLOR);
-    free(str);
 }
 
 void DebugClear()
@@ -79,16 +78,19 @@ void DebugClear()
 
 void Debug(const char *format, ...)
 {
-    char* str;
+    char str[256];
     va_list va;
 
     va_start(va, format);
-    vasprintf(&str, format, va);
+    vsnprintf(str, 256, format, va);
     va_end(va);
+	
+	if (current_y >= END_Y) {
+        DebugClear();
+    }
 
     DrawString(TOP_SCREEN0, str, 10, current_y, FONT_COLOR, BG_COLOR);
     DrawString(TOP_SCREEN1, str, 10, current_y, FONT_COLOR, BG_COLOR);
-    free(str);
 
     current_y += 10;
 }
