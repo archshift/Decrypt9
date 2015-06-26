@@ -14,6 +14,8 @@
 #define NAND_SECTOR_SIZE 0x200
 #define SECTORS_PER_READ (BUFFER_MAX_SIZE / NAND_SECTOR_SIZE)
 
+u8* ctrStart = NULL;
+
 // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
 static const u8 common_keyy[6][16] = {
     {0xD0, 0x7B, 0x33, 0x7F, 0x9C, 0xA4, 0x38, 0x59, 0x32, 0xA2, 0xE2, 0x57, 0x23, 0x23, 0x2E, 0xB9} , // 0 - eShop Titles
@@ -292,16 +294,58 @@ static u8* FindNandCtr()
     return NULL;
 }
 
-u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot) {
+u32 SeekMagicNumber(u8* magic, u32 magiclen, u32 offset, u32 size, u32 keyslot)
+{
+	DecryptBufferInfo info;
+    u8* buffer = BUFFER_ADDRESS;
+	u32 found = (u32) -1;
+
+	if (ctrStart == NULL) {
+		ctrStart = FindNandCtr();
+        if (ctrStart == NULL)
+            return 1;
+	}
+
+    info.keyslot = keyslot;
+    info.setKeyY = 0;
+    info.size = NAND_SECTOR_SIZE;
+    info.buffer = buffer;
+    for (u32 i = 0; i < 16; i++) {
+        info.CTR[i] = *(ctrStart + (0xF - i)); // The CTR is stored backwards in memory.
+    }
+    add_ctr(info.CTR, offset / 0x10);
+
+    u32 n_sectors = size / NAND_SECTOR_SIZE;
+    u32 start_sector = offset / NAND_SECTOR_SIZE;
+    for (u32 i = 0; i < n_sectors; i++) {
+        ShowProgress(i, n_sectors);
+        sdmmc_nand_readsectors(start_sector + i, 1, buffer);
+        DecryptBuffer(&info);
+		if(memcmp(buffer, magic, magiclen) == 0) {
+			found = (start_sector + i) * NAND_SECTOR_SIZE;
+			break;
+		}
+    }
+
+    ShowProgress(0, 0);
+    FileClose();
+
+    return found;
+}
+
+u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot)
+{
     DecryptBufferInfo info;
     u8* buffer = BUFFER_ADDRESS;
-    u8* ctrStart = FindNandCtr();
 
-    Debug("Dumping System NAND Partition. Size (MB): %u", size / (1024 * 1024));
+    Debug("Decrypting NAND data. Size (MB): %u", offset, size);
     Debug("Filename: %s", filename);
 
-    if (ctrStart == NULL)
-        return 1;
+	if (ctrStart == NULL) {
+		ctrStart = FindNandCtr();
+        if (ctrStart == NULL)
+            return 1;
+	}
 
     info.keyslot = keyslot;
     info.setKeyY = 0;
@@ -310,7 +354,6 @@ u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot) {
     for (u32 i = 0; i < 16; i++) {
         info.CTR[i] = *(ctrStart + (0xF - i)); // The CTR is stored backwards in memory.
     }
-
     add_ctr(info.CTR, offset / 0x10);
 
     if (!FileCreate(filename, true))
@@ -319,10 +362,11 @@ u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot) {
     u32 n_sectors = size / NAND_SECTOR_SIZE;
     u32 start_sector = offset / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+		u32 read_sectors = min(SECTORS_PER_READ, (n_sectors - i));
         ShowProgress(i, n_sectors);
-        sdmmc_nand_readsectors(start_sector + i, SECTORS_PER_READ, buffer);
+        sdmmc_nand_readsectors(start_sector + i, read_sectors, buffer);
         DecryptBuffer(&info);
-        FileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE);
+        FileWrite(buffer, NAND_SECTOR_SIZE * read_sectors, i * NAND_SECTOR_SIZE);
     }
 
     ShowProgress(0, 0);
@@ -333,9 +377,11 @@ u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot) {
 
 u32 NandPadgen()
 {
-    u8* ctrStart = FindNandCtr();
-    if (ctrStart == NULL)
-        return 1;
+    if (ctrStart == NULL) {
+		ctrStart = FindNandCtr();
+        if (ctrStart == NULL)
+            return 1;
+	}
 
     u8 ctr[16] = {0x0};
     u32 i = 0;
@@ -415,7 +461,8 @@ u32 CreatePad(PadInfo *info)
     return 0;
 }
 
-u32 NandDumper() {
+u32 NandDumper()
+{
     u8* buffer = BUFFER_ADDRESS;
     u32 nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
 
@@ -443,17 +490,14 @@ u32 NandPartitionsDumper() {
     u32 ctrnand_size;
     u32 keyslot;
 
-    switch (GetUnitPlatform()) {
-    case PLATFORM_3DS:
+    if(GetUnitPlatform() == PLATFORM_3DS) {
         ctrnand_offset = 0x0B95CA00;
         ctrnand_size = 0x2F3E3600;
         keyslot = 0x4;
-        break;
-    case PLATFORM_N3DS:
+	} else {
         ctrnand_offset = 0x0B95AE00;
         ctrnand_size = 0x41D2D200;
         keyslot = 0x5;
-        break;
     }
 
     // see: http://3dbrew.org/wiki/Flash_Filesystem
@@ -462,4 +506,32 @@ u32 NandPartitionsDumper() {
     Debug("Dumping ctrnand.bin: %s!", DumpPartition("ctrnand.bin", ctrnand_offset, ctrnand_size, keyslot) == 0 ? "succeeded" : "failed");
 
     return 0;
+}
+
+u32 TicketDumper() {
+	const u32 ticket_size = 0xD0000;
+	u32 ctrnand_offset;
+    u32 ctrnand_size;
+    u32 keyslot;
+	u32 offset;
+
+    if(GetUnitPlatform() == PLATFORM_3DS) {
+        ctrnand_offset = 0x0B95CA00;
+        ctrnand_size = 0x2F3E3600;
+        keyslot = 0x4;
+	} else {
+        ctrnand_offset = 0x0B95AE00;
+        ctrnand_size = 0x41D2D200;
+        keyslot = 0x5;
+    }
+	
+    Debug("Seeking for 'TICK'...");
+	offset = SeekMagicNumber((u8*) "TICK", 4, ctrnand_offset, ctrnand_size - ticket_size + NAND_SECTOR_SIZE, keyslot);
+	if(offset == (u32) -1) {
+		Debug("Failed!");
+		return 1;
+	}
+	Debug("Found at 0x%08X", offset);
+	
+	return DumpPartition("ticket.bin", offset, ticket_size, keyslot);
 }

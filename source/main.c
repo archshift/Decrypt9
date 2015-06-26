@@ -26,6 +26,7 @@ int main()
     Debug("Y: NAND Padgen");
     Debug("L: NAND Partition Dump");
     Debug("R: NAND Dump");
+	Debug("%c: Ticket Dump", 0x18);
     Debug("");
     Debug("START: Reboot");
     Debug("");
@@ -57,6 +58,10 @@ int main()
         } else if (pad_state & BUTTON_R1) {
             DebugClear();
             Debug("NAND Dump: %s!", NandDumper() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_UP) {
+            DebugClear();
+            Debug("Ticket Dump: %s!", TicketDumper() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_START) {
             goto reboot;
