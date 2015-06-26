@@ -10,6 +10,7 @@ install:
 
 script:
   - make
+  - mv output/Launcher.dat .
 
 env:
   global:
@@ -18,9 +19,15 @@ env:
 after_success:
   - >
     if [ "$TRAVIS_BRANCH" == "master" ]; then
+        GITDATE="`git show -s --date=short --format='%ad' | sed 's/-//g'`"
+        GITREV="`git show -s --format='%h'`"
+        REV_NAME="decrypt9-${GITDATE}-${GITREV}-browser"
+
         sudo apt-get -qq install lftp p7zip-full
-        ARCHIVE_NAME="`git show -s --format='%h-%f' | cut -c1-111`.7z"
-        7z a archive README.md Launcher.dat scripts/*.py
-        mv archive.7z "$ARCHIVE_NAME"
-        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/' '$ARCHIVE_NAME'"
+        mkdir "$REV_NAME"
+
+        cp -R README.md Launcher.dat scripts "$REV_NAME"
+        7z a "$REV_NAME" "$REV_NAME/*"
+        ARCHIVE_NAME="${REV_NAME}.7z"
+        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/browser' '$ARCHIVE_NAME'"
     fi
