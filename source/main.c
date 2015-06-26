@@ -26,7 +26,7 @@ int main()
     Debug("Y: NAND Padgen");
     Debug("L: NAND Partition Dump");
     Debug("R: NAND Dump");
-	Debug("%c: Ticket Dump", 0x18);
+    Debug("%c: Ticket Dump", 0x18);
     Debug("");
     Debug("START: Reboot");
     Debug("");

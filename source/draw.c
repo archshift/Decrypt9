@@ -84,8 +84,8 @@ void Debug(const char *format, ...)
     va_start(va, format);
     vsnprintf(str, 256, format, va);
     va_end(va);
-	
-	if (current_y >= END_Y) {
+    
+    if (current_y >= END_Y) {
         DebugClear();
     }
 
