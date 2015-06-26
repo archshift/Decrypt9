@@ -3,7 +3,7 @@
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/padgen.h"
+#include "decryptor/decryptor.h"
 #include "decryptor/crypto.h"
 #include "decryptor/features.h"
 #include "sha256.h"
