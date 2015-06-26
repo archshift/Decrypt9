@@ -9,8 +9,11 @@ install:
   - sudo perl devkitARMupdate.pl
 
 script:
-  - make
+  - make gateway
   - mv output/Launcher.dat .
+  - make clean
+  - make bootstrap
+  - mv output/Decrypt9.bin .
 
 env:
   global:
@@ -21,13 +24,17 @@ after_success:
     if [ "$TRAVIS_BRANCH" == "master" ]; then
         GITDATE="`git show -s --date=short --format='%ad' | sed 's/-//g'`"
         GITREV="`git show -s --format='%h'`"
-        REV_NAME="decrypt9-${GITDATE}-${GITREV}-browser"
+        REV_NAME_GW="decrypt9-${GITDATE}-${GITREV}-browser"
+        REV_NAME_BS="decrypt9-${GITDATE}-${GITREV}-bootstrap"
 
         sudo apt-get -qq install lftp p7zip-full
-        mkdir "$REV_NAME"
+        mkdir "$REV_NAME_GW" "$REV_NAME_BS"
 
-        cp -R README.md Launcher.dat scripts "$REV_NAME"
-        7z a "$REV_NAME" "$REV_NAME/*"
-        ARCHIVE_NAME="${REV_NAME}.7z"
-        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/browser' '$ARCHIVE_NAME'"
+        cp -R README.md Launcher.dat scripts "$REV_NAME_GW"
+        cp -R README.md Decrypt9.bin scripts "$REV_NAME_BS"
+        7z a "$REV_NAME_GW" "$REV_NAME_GW/*"
+        7z a "$REV_NAME_BS" "$REV_NAME_BS/*"
+
+        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/browser' '${REV_NAME_GW}.7z'"
+        lftp -c "open -u builds,$BUILD_PASSWORD sftp://archshift.com; put -O '/decrypt9/nightly/bootstrap' '${REV_NAME_BS}.7z'"
     fi
