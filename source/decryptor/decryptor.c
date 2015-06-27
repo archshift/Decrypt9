@@ -273,34 +273,34 @@ u32 GetNandCtr(u8* ctr, u32 offset)
         (u8*)0x080D794C
     };
     static const u32 version_ctrs_len = sizeof(version_ctrs) / sizeof(u32);
-	static u8* ctr_start = NULL; 
+    static u8* ctr_start = NULL; 
 
-	if(ctr_start == NULL) {
-		for (u32 i = 0; i < version_ctrs_len; i++) {
-			if (*(u32*)version_ctrs[i] == 0x5C980) {
-				Debug("System version: %s", versions[i]);
-				ctr_start =(u8*)(version_ctrs[i] + 0x30);
-			}
-		}
+    if(ctr_start == NULL) {
+        for (u32 i = 0; i < version_ctrs_len; i++) {
+            if (*(u32*)version_ctrs[i] == 0x5C980) {
+                Debug("System version: %s", versions[i]);
+                ctr_start =(u8*)(version_ctrs[i] + 0x30);
+            }
+        }
 
-		if(ctr_start == NULL) {
-			// if value not in previous list start memory scanning (test range)
-			for (u8* c = (u8*)0x080D8FFF; c > (u8*)0x08000000; c--) {
-				if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
-					Debug("CTR Start: 0x%08X", c + 0x30);
-					ctr_start = c + 0x30;
-					break;
-				}
-			}
-		}
-		
-		if(ctr_start == NULL) {
-			Debug("CTR Start: not found!");
-			return 1;
-		}
-	}
-	
-	for (u32 i = 0; i < 16; i++)
+        if(ctr_start == NULL) {
+            // if value not in previous list start memory scanning (test range)
+            for (u8* c = (u8*)0x080D8FFF; c > (u8*)0x08000000; c--) {
+                if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
+                    Debug("CTR Start: 0x%08X", c + 0x30);
+                    ctr_start = c + 0x30;
+                    break;
+                }
+            }
+        }
+        
+        if(ctr_start == NULL) {
+            Debug("CTR Start: not found!");
+            return 1;
+        }
+    }
+    
+    for (u32 i = 0; i < 16; i++)
         ctr[i] = *(ctr_start + (0xF - i)); // The CTR is stored backwards in memory.
     add_ctr(ctr, offset / 0x10);
 
@@ -317,9 +317,9 @@ u32 SeekMagicNumber(u8* magic, u32 magiclen, u32 offset, u32 size, u32 keyslot)
     info.setKeyY = 0;
     info.size = NAND_SECTOR_SIZE;
     info.buffer = buffer;
-	if(GetNandCtr(info.CTR, offset) != 0)
-		return 1;
-	
+    if(GetNandCtr(info.CTR, offset) != 0)
+        return 1;
+    
     u32 n_sectors = size / NAND_SECTOR_SIZE;
     u32 start_sector = offset / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i++) {
@@ -350,8 +350,8 @@ u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot)
     info.setKeyY = 0;
     info.size = SECTORS_PER_READ * NAND_SECTOR_SIZE;
     info.buffer = buffer;
-	if(GetNandCtr(info.CTR, offset) != 0)
-		return 1;
+    if(GetNandCtr(info.CTR, offset) != 0)
+        return 1;
 
     if (!FileCreate(filename, true))
         return 1;
@@ -374,17 +374,17 @@ u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot)
 
 u32 NandPadgen()
 {
-	u8 ctr[16];
-	u32 keyslot;
+    u8 ctr[16];
+    u32 keyslot;
     u32 nand_size;
-	
-	if(GetNandCtr(ctr, 0xB930000) != 0)
-		return 1;
+    
+    if(GetNandCtr(ctr, 0xB930000) != 0)
+        return 1;
 
     if(GetUnitPlatform() == PLATFORM_3DS) {
-		keyslot = 0x4;
-		nand_size = 758;
-	} else {
+        keyslot = 0x4;
+        nand_size = 758;
+    } else {
         keyslot = 0x5;
         nand_size = 1055;
     }
@@ -393,8 +393,8 @@ u32 NandPadgen()
     Debug("Filename: nand.fat16.xorpad");
 
     PadInfo padInfo = {.keyslot = keyslot, .setKeyY = 0, .size_mb = nand_size , .filename = "/nand.fat16.xorpad"};
-	if(GetNandCtr(padInfo.CTR, 0xB930000) != 0)
-		return 1;
+    if(GetNandCtr(padInfo.CTR, 0xB930000) != 0)
+        return 1;
 
     return CreatePad(&padInfo);
 }
