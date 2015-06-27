@@ -7,7 +7,7 @@
 
 ## Generating xorpads for encrypted files
 
-First build by running `make` in the project root.
+First build by running `make` in the project root. By default, it will build the browser version of Decrypt9. If you'd like to build for use with brahma or bootstrap, run `make bootstrap` instead.
 
 ### Decrypting gamecart dumps
 
