@@ -77,8 +77,7 @@ typedef struct {
     TitleKeyEntry entries[MAX_ENTRIES];
 } __attribute__((packed, aligned(16))) EncKeysInfo;
 
-static u8* FindNandCtr();
+u32 GetNandCtr(u8* ctr, u32 offset);
 u32 DumpPartition(char* filename, u32 offset, u32 size, u32 keyslot);
 u32 DecryptBuffer(DecryptBufferInfo *info);
 u32 CreatePad(PadInfo *info);
-
