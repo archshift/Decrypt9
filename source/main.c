@@ -20,13 +20,13 @@ int main()
     DebugClear();
     InitFS();
 
-    Debug("A: NCCH Padgen");
-    Debug("B: SD Padgen");
-    Debug("X: Titlekey Decryption");
-    Debug("Y: NAND Padgen");
-    Debug("L: NAND Partition Dump");
-    Debug("R: NAND Dump");
-    Debug("%c: Ticket Dump", 0x18);
+    Debug("A:  NCCH Padgen");
+    Debug("B:  SD Padgen");
+    Debug("X:  Titlekey Decryption");
+    Debug("Y:  NAND Padgen");
+    Debug("L:  NAND Partition Dump");
+    Debug("R:  NAND Dump");
+    Debug("UP: Ticket Dump");
     Debug("");
     Debug("START: Reboot");
     Debug("");
