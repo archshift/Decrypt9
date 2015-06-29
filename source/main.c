@@ -20,12 +20,13 @@ int main()
     DebugClear();
     InitFS();
 
-    Debug("A: NCCH Padgen");
-    Debug("B: SD Padgen");
-    Debug("X: Titlekey Decryption");
-    Debug("Y: NAND Padgen");
-    Debug("L: NAND Partition Dump");
-    Debug("R: NAND Dump");
+    Debug("A:  NCCH Padgen");
+    Debug("B:  SD Padgen");
+    Debug("X:  Titlekey Decryption");
+    Debug("Y:  NAND Padgen");
+    Debug("L:  NAND Partition Dump");
+    Debug("R:  NAND Dump");
+    Debug("UP: Ticket Dump");
     Debug("");
     Debug("START: Reboot");
     Debug("");
@@ -57,6 +58,10 @@ int main()
         } else if (pad_state & BUTTON_R1) {
             DebugClear();
             Debug("NAND Dump: %s!", NandDumper() == 0 ? "succeeded" : "failed");
+            break;
+        } else if (pad_state & BUTTON_UP) {
+            DebugClear();
+            Debug("Ticket Dump: %s!", TicketDumper() == 0 ? "succeeded" : "failed");
             break;
         } else if (pad_state & BUTTON_START) {
             goto reboot;
