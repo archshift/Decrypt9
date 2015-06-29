@@ -328,7 +328,6 @@ u32 SeekMagicNumber(u8* magic, u32 magiclen, u32 offset, u32 size, u32 keyslot)
     }
 
     ShowProgress(0, 0);
-    FileClose();
 
     return found;
 }
