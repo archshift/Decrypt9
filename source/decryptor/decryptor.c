@@ -135,9 +135,14 @@ u32 NcchPadgen()
         return 1;
     if (!DebugFileRead(info, 16, 0))
         return 1;
-    if (!info->n_entries || info->n_entries > MAX_ENTRIES || (info->ncch_info_version != 0xF0000004)) {
-        Debug("Too many/few entries, or wrong version ncchinfo.bin");
-        return 0;
+
+    if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
+        Debug("Too many/few entries in ncchinfo.bin");
+        return 1;
+    }
+    if (info->ncch_info_version != 0xF0000004) {
+        Debug("Wrong version ncchinfo.bin");
+        return 1;
     }
     if (!DebugFileRead(info->entries, info->n_entries * sizeof(NcchInfoEntry), 16))
         return 1;
@@ -167,7 +172,7 @@ u32 NcchPadgen()
                 Debug("Failed to find seed in seeddb.bin");
                 return 0;
             }
-        u8 sha256sum[32];
+            u8 sha256sum[32];
             sha256_context shactx;
             sha256_starts(&shactx);
             sha256_update(&shactx, keydata, 32);
@@ -403,7 +408,6 @@ u32 NandDumper() {
     u32 nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
 
     Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
-    Debug("Filename: NAND.bin");
 
     if (!DebugFileCreate("/NAND.bin", true))
         return 1;
