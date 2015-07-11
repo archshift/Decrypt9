@@ -8,7 +8,7 @@
 #4 bytes   Number of entries
 #4 bytes   Reserved
 #
-#entry (160 bytes in size):
+#entry (168 bytes in size):
 #  16 bytes   Counter
 #  16 bytes   KeyY
 #   4 bytes   Size in MB(rounded up)
