@@ -112,7 +112,7 @@ gateway: $(OUTPUT_D)
 	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
 	cp tools/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
-	python tools/insert.py $(OUTPUT_D)/Launcher.dat $(OUTPUT).bin 0x16D8D0
+	python2 tools/insert.py $(OUTPUT_D)/Launcher.dat $(OUTPUT).bin 0x16D8D0
 
 bootstrap: $(OUTPUT_D)
 	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
