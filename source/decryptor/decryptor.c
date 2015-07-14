@@ -198,10 +198,13 @@ u32 NcchPadgen()
 
         if(info->entries[i].uses7xCrypto == 0xA) // won't work on an Old 3DS
             padInfo.keyslot = 0x18;
+        else if(info->entries[i].uses7xCrypto >> 8 == 0xDEC0DE) // magic value to manually specify keyslot
+            padInfo.keyslot = info->entries[i].uses7xCrypto & 0x3F;
         else if(info->entries[i].uses7xCrypto)
             padInfo.keyslot = 0x25;
         else
             padInfo.keyslot = 0x2C;
+        Debug("Using keyslot: %02X", padInfo.keyslot);
 
         result = CreatePad(&padInfo);
         if (!result)
