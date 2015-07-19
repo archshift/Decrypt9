@@ -170,7 +170,7 @@ u32 NcchPadgen()
         PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 112);
-        if (info->entries[i].uses7xCrypto && info->entries[i].usesSeedCrypto) {
+        if (info->entries[i].usesSeedCrypto) {
             u8 keydata[32];
             memcpy(keydata, info->entries[i].keyY, 16);
             u32 found_seed = 0;
