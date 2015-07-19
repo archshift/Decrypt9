@@ -192,6 +192,10 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
             data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, usesSeedCrypto, 0, tab)
             data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_7x')
             entries += 1
+        elif usesSeedCrypto and not uses7xCrypto:
+            data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, usesSeedCrypto, 0, tab)
+            data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_7x')
+            entries += 1
         print ''
     if header.romfsSize:
         data = data + parseNCCHSection(header, ncchSection.romfs, uses7xCrypto, usesSeedCrypto, 1, tab)
