@@ -188,7 +188,7 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
         data = data + parseNCCHSection(header, ncchSection.exefs, 0, 0, 1, tab)
         data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_norm')
         entries += 1
-        if uses7xCrypto:
+        if uses7xCrypto or usesSeedCrypto:
             data = data + parseNCCHSection(header, ncchSection.exefs, uses7xCrypto, usesSeedCrypto, 0, tab)
             data = data + genOutName(titleId, ncsdPartitions[idx], b'exefs_7x')
             entries += 1
