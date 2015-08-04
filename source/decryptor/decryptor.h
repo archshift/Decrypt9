@@ -62,6 +62,7 @@ typedef struct {
     u8   CTR[16];
     u8   keyY[16];
     u32  size_mb;
+    u32  mode;
     char filename[180];
 } __attribute__((packed, aligned(16))) PadInfo;
 

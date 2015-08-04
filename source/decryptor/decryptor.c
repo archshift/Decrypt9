@@ -184,7 +184,7 @@ u32 NcchPadgen()
     for(u32 i = 0; i < info->n_entries; i++) {
         Debug("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
-        PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb};
+        PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb, .mode = AES_CNT_CTRNAND_MODE};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 112);
         if (info->entries[i].usesSeedCrypto) {
@@ -280,7 +280,7 @@ u32 SdPadgen()
     for(u32 i = 0; i < info->n_entries; i++) {
         Debug ("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
-        PadInfo padInfo = {.keyslot = 0x34, .setKeyY = 0, .size_mb = info->entries[i].size_mb};
+        PadInfo padInfo = {.keyslot = 0x34, .setKeyY = 0, .size_mb = info->entries[i].size_mb, .mode = AES_CNT_CTRNAND_MODE};
         memcpy(padInfo.CTR, info->entries[i].CTR, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 180);
 
@@ -405,8 +405,26 @@ u32 CtrNandPadgen()
     Debug("Creating NAND FAT16 xorpad. Size (MB): %u", nand_size);
     Debug("Filename: nand.fat16.xorpad");
 
-    PadInfo padInfo = {.keyslot = keyslot, .setKeyY = 0, .size_mb = nand_size, .filename = "/nand.fat16.xorpad"};
+    PadInfo padInfo = {.keyslot = keyslot, .setKeyY = 0, .size_mb = nand_size, .filename = "nand.fat16.xorpad", .mode = AES_CNT_CTRNAND_MODE};
     if(GetNandCtr(padInfo.CTR, 0xB930000) != 0)
+        return 1;
+
+    return CreatePad(&padInfo);
+}
+
+u32 TwlNandPadgen()
+{
+    u32 size_mb = (partitions[0].size + (1024 * 1024) - 1) / (1024 * 1024);
+    Debug("Creating TWLNAND FAT16 xorpad. Size (MB): %u", size_mb);
+    Debug("Filename: twlnand.fat16.xorpad");
+
+    PadInfo padInfo = {
+        .keyslot = partitions[0].keyslot,
+        .setKeyY = 0,
+        .size_mb = size_mb,
+        .filename = "twlnand.fat16.xorpad",
+        .mode = AES_CNT_TWLNAND_MODE};
+    if(GetNandCtr(padInfo.CTR, partitions[0].offset) != 0)
         return 1;
 
     return CreatePad(&padInfo);
@@ -414,32 +432,22 @@ u32 CtrNandPadgen()
 
 u32 CreatePad(PadInfo *info)
 {
-    static const uint8_t zero_buf[16] __attribute__((aligned(16))) = {0};
     u8* buffer = BUFFER_ADDRESS;
     u32 result = 0;
     
     if (!FileCreate(info->filename, true)) // No DebugFileCreate() here - messages are already given
         return 1;
-
-    if(info->setKeyY)
-        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, info->keyY);
-    use_aeskey(info->keyslot);
-
-    u8 ctr[16] __attribute__((aligned(32)));
-    memcpy(ctr, info->CTR, 16);
-
+        
+    DecryptBufferInfo decryptInfo = {.keyslot = info->keyslot, .setKeyY = info->setKeyY, .mode = info->mode, .buffer = buffer};
+    memcpy(decryptInfo.CTR, info->CTR, 16);
+    memcpy(decryptInfo.keyY, info->keyY, 16);
     u32 size_bytes = info->size_mb * 1024*1024;
     for (u32 i = 0; i < size_bytes; i += BUFFER_MAX_SIZE) {
         u32 curr_block_size = min(BUFFER_MAX_SIZE, size_bytes - i);
-
-        for (u32 j = 0; j < curr_block_size; j+= 16) {
-            set_ctr(ctr);
-            aes_decrypt((void*)zero_buf, (void*)buffer + j, ctr, 1, AES_CTR_MODE);
-            add_ctr(ctr, 1);
-        }
-
+        decryptInfo.size = curr_block_size;
+        memset(buffer, 0x00, curr_block_size);
         ShowProgress(i, size_bytes);
-
+        DecryptBuffer(&decryptInfo);
         if (!DebugFileWrite((void*)buffer, curr_block_size, i)) {
             result = 1;
             break;

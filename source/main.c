@@ -14,21 +14,21 @@
 MenuInfo menu[] =
 {
     {
-        "Decrypt9 Features #1",
+        "XORpad Options",
         {
             { "NCCH Padgen", &NcchPadgen },
             { "SD Padgen", &SdPadgen },
             { "CTRNAND Padgen", &CtrNandPadgen },
-            { "Titlekey Decrypt", &DecryptTitlekeys }
+            { "TWLNAND Padgen", &TwlNandPadgen }
         }
     },
     {
-        "Decrypt9 Features #2",
+        "Other Options",
         {
             { "NAND Backup", &DumpNand },
             { "TWL / AGB Partitions Dump", &DecryptTwlAgbPartitions },
             { "CTR Partitions Dump", &DecryptCtrPartitions },
-            { NULL, NULL }
+            { "Titlekey Decrypt", &DecryptTitlekeys }
         }
     }
 };
