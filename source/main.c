@@ -18,15 +18,15 @@ MenuInfo menu[] =
         {
             { "NCCH Padgen", &NcchPadgen },
             { "SD Padgen", &SdPadgen },
-            { "CTRNAND Padgen", &NandPadgen },
+            { "CTRNAND Padgen", &CtrNandPadgen },
             { "Titlekey Decrypt", &DecryptTitlekeys }
         }
     },
     {
         "Decrypt9 Features #2",
         {
-            { "NAND Backup", &NandDumper },
-            { "NAND Partitions Dump", &NandPartitionsDumper },
+            { "NAND Backup", &DumpNand },
+            { "NAND Partitions Dump", &DecryptCtrPartitions },
             { NULL, NULL },
             { NULL, NULL },
         }
