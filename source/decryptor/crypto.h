@@ -11,7 +11,6 @@
 #define AES_CCM_DECRYPT_MODE (0 << 27)
 #define AES_CCM_ENCRYPT_MODE (1 << 27)
 #define AES_CTR_MODE         (2 << 27)
-#define AES_CTR_MODE         (2 << 27)
 #define AES_CBC_DECRYPT_MODE (4 << 27)
 #define AES_CBC_ENCRYPT_MODE (5 << 27)
 #define AES_ECB_DECRYPT_MODE (6 << 27)
@@ -35,13 +34,16 @@
 #define AES_CNT_FLUSH_READ    0x00000800
 #define AES_CNT_FLUSH_WRITE   0x00000400
 
+#define AES_CNT_CTRNAND_MODE (AES_CTR_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
+#define AES_CNT_TWLNAND_MODE AES_CTR_MODE
+#define AES_CNT_TITLEKEY_MODE (AES_CBC_DECRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
+
 void add_ctr(void* ctr, u32 carry);
 
 void setup_aeskeyX(u8 keyslot, void* keyx);
-void decrypt(void* key, void* iv, void* inbuf, void* outbuf, size_t size);
 void setup_aeskey(u32 keyno, int value, void* key);
 void use_aeskey(u32 keyno);
-void set_ctr(int mode, void* iv);
+void set_ctr(void* iv);
 void aes_decrypt(void* inbuf, void* outbuf, void* iv, size_t size, u32 mode);
 void aes_fifos(void* inbuf, void* outbuf, size_t blocks);
 void set_aeswrfifo(u32 value);

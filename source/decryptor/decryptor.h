@@ -52,6 +52,7 @@ typedef struct {
     u8   CTR[16];
     u8   keyY[16];
     u32  size;
+    u32  mode;
     u8*  buffer;
 } __attribute__((packed)) DecryptBufferInfo;
 
@@ -83,6 +84,7 @@ typedef struct {
     u32 offset;
     u32 size;
     u32 keyslot;
+    u32 mode;
 } __attribute__((packed)) PartitionInfo;
 
 u32 DecryptBuffer(DecryptBufferInfo *info);

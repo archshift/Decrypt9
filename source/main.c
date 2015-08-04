@@ -26,9 +26,9 @@ MenuInfo menu[] =
         "Decrypt9 Features #2",
         {
             { "NAND Backup", &DumpNand },
-            { "NAND Partitions Dump", &DecryptCtrPartitions },
-            { NULL, NULL },
-            { NULL, NULL },
+            { "TWL / AGB Partitions Dump", &DecryptTwlAgbPartitions },
+            { "CTR Partitions Dump", &DecryptCtrPartitions },
+            { NULL, NULL }
         }
     }
 };

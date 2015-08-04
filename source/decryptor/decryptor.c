@@ -27,13 +27,13 @@ static const u8 common_keyy[6][16] = {
 
 // see: http://3dbrew.org/wiki/Flash_Filesystem
 static PartitionInfo partitions[] = {
-    { "TWLN",    {0xE9, 0x00, 0x00, 0x54, 0x57, 0x4C, 0x20, 0x20}, 0x00012E00, 0x08FB5200, 0x3 },
-    { "TWLP",    {0xE9, 0x00, 0x00, 0x54, 0x57, 0x4C, 0x20, 0x20}, 0x09011A00, 0x020B6600, 0x3 },
-    { "AGBSAVE", {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 0x0B100000, 0x00030000, 0x7 },
-    { "FIRM0",   {0x46, 0x49, 0x52, 0x4D, 0x00, 0x00, 0x00, 0x00}, 0x0B130000, 0x00400000, 0x6 },
-    { "FIRM1",   {0x46, 0x49, 0x52, 0x4D, 0x00, 0x00, 0x00, 0x00}, 0x0B530000, 0x00400000, 0x6 },
-    { "CTRNAND", {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}, 0x0B95CA00, 0x2F3E3600, 0x4 }, // O3DS
-    { "CTRNAND", {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}, 0x0B95AE00, 0x41D2D200, 0x5 }  // N3DS
+    { "TWLN",    {0xE9, 0x00, 0x00, 0x54, 0x57, 0x4C, 0x20, 0x20}, 0x00012E00, 0x08FB5200, 0x3, AES_CNT_TWLNAND_MODE },
+    { "TWLP",    {0xE9, 0x00, 0x00, 0x54, 0x57, 0x4C, 0x20, 0x20}, 0x09011A00, 0x020B6600, 0x3, AES_CNT_TWLNAND_MODE },
+    { "AGBSAVE", {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, 0x0B100000, 0x00030000, 0x7, AES_CNT_CTRNAND_MODE },
+    { "FIRM0",   {0x46, 0x49, 0x52, 0x4D, 0x00, 0x00, 0x00, 0x00}, 0x0B130000, 0x00400000, 0x6, AES_CNT_CTRNAND_MODE },
+    { "FIRM1",   {0x46, 0x49, 0x52, 0x4D, 0x00, 0x00, 0x00, 0x00}, 0x0B530000, 0x00400000, 0x6, AES_CNT_CTRNAND_MODE },
+    { "CTRNAND", {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}, 0x0B95CA00, 0x2F3E3600, 0x4, AES_CNT_CTRNAND_MODE }, // O3DS
+    { "CTRNAND", {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}, 0x0B95AE00, 0x41D2D200, 0x5, AES_CNT_CTRNAND_MODE }  // N3DS
 };
 
 u32 DecryptBuffer(DecryptBufferInfo *info)
@@ -43,6 +43,7 @@ u32 DecryptBuffer(DecryptBufferInfo *info)
 
     u8* buffer = info->buffer;
     u32 size = info->size;
+    u32 mode = info->mode;
 
     if (info->setKeyY) {
         u8 keyY[16] __attribute__((aligned(32)));
@@ -53,8 +54,8 @@ u32 DecryptBuffer(DecryptBufferInfo *info)
     use_aeskey(info->keyslot);
 
     for (u32 i = 0; i < size; i += 0x10, buffer += 0x10) {
-        set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
-        aes_decrypt((void*) buffer, (void*) buffer, ctr, 1, AES_CTR_MODE);
+        set_ctr(ctr);
+        aes_decrypt((void*) buffer, (void*) buffer, ctr, 1, mode);
         add_ctr(ctr, 0x1);
     }
 
@@ -97,7 +98,7 @@ u32 DecryptTitlekeys(void)
     for (i = 0; i < info->n_entries; i++) {
         memset(ctr, 0, 16);
         memcpy(ctr, info->entries[i].titleId, 8);
-        set_ctr(AES_BIG_INPUT|AES_NORMAL_INPUT, ctr);
+        set_ctr(ctr);
         memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
         setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
         use_aeskey(0x3D);
@@ -333,8 +334,13 @@ u32 GetNandCtr(u8* ctr, u32 offset)
     }
     
     // the CTR is stored backwards in memory
-    for (u32 i = 0; i < 16; i++)
-        ctr[i] = *(ctr_start + (0xF - i));
+    if (offset >= 0x0B100000) { // CTRNAND/AGBSAVE region
+        for (u32 i = 0; i < 16; i++)
+            ctr[i] = *(ctr_start + (0xF - i));
+    } else { // TWL region
+        for (u32 i = 0; i < 16; i++)
+            ctr[i] = *(ctr_start + 0x88 + (0xF - i));
+    }
     
     // increment counter
     add_ctr(ctr, offset / 0x10);
@@ -344,7 +350,7 @@ u32 GetNandCtr(u8* ctr, u32 offset)
 
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 {
-    DecryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer};
+    DecryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer, .mode = partition->mode};
     if(GetNandCtr(info.CTR, offset) != 0)
         return 1;
 
@@ -427,7 +433,7 @@ u32 CreatePad(PadInfo *info)
         u32 curr_block_size = min(BUFFER_MAX_SIZE, size_bytes - i);
 
         for (u32 j = 0; j < curr_block_size; j+= 16) {
-            set_ctr(AES_BIG_INPUT | AES_NORMAL_INPUT, ctr);
+            set_ctr(ctr);
             aes_decrypt((void*)zero_buf, (void*)buffer + j, ctr, 1, AES_CTR_MODE);
             add_ctr(ctr, 1);
         }
@@ -489,6 +495,16 @@ u32 DecryptNandPartition(PartitionInfo* p) {
     return DecryptNandToFile(filename, p->offset, p->size, p);
 }
 
+u32 DecryptTwlAgbPartitions() {
+    u32 result = 0;
+    
+    result |= DecryptNandPartition(&(partitions[0])); // TWLN
+    result |= DecryptNandPartition(&(partitions[1])); // TWLP
+    result |= DecryptNandPartition(&(partitions[2])); // AGBSAVE
+    
+    return result;
+}
+    
 u32 DecryptCtrPartitions() {
     u32 result = 0;
     bool o3ds = (GetUnitPlatform() == PLATFORM_3DS);
