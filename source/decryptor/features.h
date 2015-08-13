@@ -2,7 +2,9 @@
 
 u32 NcchPadgen(void);
 u32 SdPadgen(void);
-u32 NandPadgen(void);
+u32 CtrNandPadgen(void);
+u32 TwlNandPadgen(void);
 u32 DecryptTitlekeys(void);
-u32 NandDumper(void);
-u32 NandPartitionsDumper();
+u32 DumpNand(void);
+u32 DecryptTwlAgbPartitions(void);
+u32 DecryptCtrPartitions(void);

@@ -52,6 +52,7 @@ typedef struct {
     u8   CTR[16];
     u8   keyY[16];
     u32  size;
+    u32  mode;
     u8*  buffer;
 } __attribute__((packed)) DecryptBufferInfo;
 
@@ -61,6 +62,7 @@ typedef struct {
     u8   CTR[16];
     u8   keyY[16];
     u32  size_mb;
+    u32  mode;
     char filename[180];
 } __attribute__((packed, aligned(16))) PadInfo;
 
@@ -77,4 +79,18 @@ typedef struct {
     TitleKeyEntry entries[MAX_ENTRIES];
 } __attribute__((packed, aligned(16))) EncKeysInfo;
 
+typedef struct {
+    char name[16];
+    u8  magic[8];
+    u32 offset;
+    u32 size;
+    u32 keyslot;
+    u32 mode;
+} __attribute__((packed)) PartitionInfo;
+
+u32 DecryptBuffer(DecryptBufferInfo *info);
 u32 CreatePad(PadInfo *info);
+u32 GetNandCtr(u8* ctr, u32 offset);
+u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition);
+u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo* partition);
+u32 DecryptNandPartition(PartitionInfo* p);

@@ -11,13 +11,6 @@ void setup_aeskeyX(u8 keyslot, void* keyx)
     *REG_AESKEYXFIFO = _keyx[3];
 }
 
-void decrypt(void* key, void* iv, void* inbuf, void* outbuf, size_t size)
-{
-    setup_aeskey(0x2C, AES_BIG_INPUT|AES_NORMAL_INPUT, key);
-    use_aeskey(0x2C);
-    aes_decrypt(inbuf, outbuf, iv, size / AES_BLOCK_SIZE, AES_CTR_MODE);
-}
-
 void setup_aeskey(u32 keyno, int value, void* key)
 {
     volatile u32* aes_regs[] =
@@ -67,24 +60,14 @@ void use_aeskey(u32 keyno)
     *REG_AESCNT    = *REG_AESCNT | 0x04000000; /* mystery bit */
 }
 
-void set_ctr(int mode, void* iv)
+void set_ctr(void* iv)
 {
     u32 * _iv = (u32*)iv;
-    *REG_AESCNT = (*REG_AESCNT & ~(AES_CNT_INPUT_ENDIAN|AES_CNT_INPUT_ORDER)) | (mode << 23);
-    if (mode & AES_NORMAL_INPUT)
-    {
-        *(REG_AESCTR + 0) = _iv[3];
-        *(REG_AESCTR + 1) = _iv[2];
-        *(REG_AESCTR + 2) = _iv[1];
-        *(REG_AESCTR + 3) = _iv[0];
-    }
-    else
-    {
-        *(REG_AESCTR + 0) = _iv[0];
-        *(REG_AESCTR + 1) = _iv[1];
-        *(REG_AESCTR + 2) = _iv[2];
-        *(REG_AESCTR + 3) = _iv[3];
-    }
+    *REG_AESCNT = (*REG_AESCNT) | AES_CNT_INPUT_ENDIAN | AES_CNT_INPUT_ORDER;
+    *(REG_AESCTR + 0) = _iv[3];
+    *(REG_AESCTR + 1) = _iv[2];
+    *(REG_AESCTR + 2) = _iv[1];
+    *(REG_AESCTR + 3) = _iv[0];
 }
 
 void add_ctr(void* ctr, u32 carry)
@@ -125,10 +108,6 @@ static void _decrypt(u32 value, void* inbuf, void* outbuf, size_t blocks)
     *REG_AESBLKCNT = blocks << 16;
     *REG_AESCNT = value |
                   AES_CNT_START |
-                  AES_CNT_INPUT_ORDER |
-                  AES_CNT_OUTPUT_ORDER |
-                  AES_CNT_INPUT_ENDIAN |
-                  AES_CNT_OUTPUT_ENDIAN |
                   AES_CNT_FLUSH_READ |
                   AES_CNT_FLUSH_WRITE;
     aes_fifos(inbuf, outbuf, blocks);

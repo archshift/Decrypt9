@@ -6,8 +6,33 @@
 #include "draw.h"
 #include "fs.h"
 #include "hid.h"
+#include "menu.h"
 #include "i2c.h"
 #include "decryptor/features.h"
+
+
+MenuInfo menu[] =
+{
+    {
+        "XORpad Options",
+        {
+            { "NCCH Padgen", &NcchPadgen },
+            { "SD Padgen", &SdPadgen },
+            { "CTRNAND Padgen", &CtrNandPadgen },
+            { "TWLNAND Padgen", &TwlNandPadgen }
+        }
+    },
+    {
+        "Other Options",
+        {
+            { "NAND Backup", &DumpNand },
+            { "TWL / AGB Partitions Dump", &DecryptTwlAgbPartitions },
+            { "CTR Partitions Dump", &DecryptCtrPartitions },
+            { "Titlekey Decrypt", &DecryptTitlekeys }
+        }
+    }
+};
+        
 
 void Reboot()
 {
@@ -20,57 +45,8 @@ int main()
     DebugClear();
     InitFS();
 
-    Debug("A: NCCH Padgen");
-    Debug("B: SD Padgen");
-    Debug("X: Titlekey Decryption");
-    Debug("Y: NAND Padgen");
-    Debug("L: NAND Partition Dump");
-    Debug("R: NAND Dump");
-    Debug("");
-    Debug("START: Reboot");
-    Debug("");
-    Debug("");
-    Debug("Remaining SD storage space: %llu MiB", RemainingStorageSpace() / 1024 / 1024);
-
-    while (true) {
-        u32 pad_state = InputWait();
-        if (pad_state & BUTTON_A) {
-            DebugClear();
-            Debug("NCCH Padgen: %s!", NcchPadgen() == 0 ? "succeeded" : "failed");
-            break;
-        } else if (pad_state & BUTTON_B) {
-            DebugClear();
-            Debug("SD Padgen: %s!", SdPadgen() == 0 ? "succeeded" : "failed");
-            break;
-        } else if (pad_state & BUTTON_X) {
-            DebugClear();
-            Debug("Titlekey Decryption: %s!", DecryptTitlekeys() == 0 ? "succeeded" : "failed");
-            break;
-        } else if (pad_state & BUTTON_Y) {
-            DebugClear();
-            Debug("NAND Padgen: %s!", NandPadgen() == 0 ? "succeeded" : "failed");
-            break;
-        } else if (pad_state & BUTTON_L1) {
-            DebugClear();
-            Debug("NAND Partition Dump: %s!", NandPartitionsDumper() == 0 ? "succeeded" : "failed");
-            break;
-        } else if (pad_state & BUTTON_R1) {
-            DebugClear();
-            Debug("NAND Dump: %s!", NandDumper() == 0 ? "succeeded" : "failed");
-            break;
-        } else if (pad_state & BUTTON_START) {
-            goto reboot;
-        }
-    }
-
-    Debug("");
-    Debug("Press START to reboot to home.");
-    while(true) {
-        if (InputWait() & BUTTON_START)
-            break;
-    }
-
-reboot:
+    ProcessMenu(menu, sizeof(menu) / sizeof(MenuInfo));
+    
     DeinitFS();
     Reboot();
     return 0;
