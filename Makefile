@@ -118,9 +118,16 @@ bootstrap: $(OUTPUT_D)
 	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=BOOTSTRAP
 
+cakehax: $(OUTPUT_D)
+	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
+	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
+	@make dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
+	dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
+
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
+	@make clean --no-print-directory -C CakeHax -f CakeHax/Makefile
 	@rm -fr $(BUILD) $(OUTPUT_D)
 
 
@@ -138,7 +145,7 @@ $(OUTPUT).elf	:	$(OFILES)
 
 #---------------------------------------------------------------------------------
 %.bin: %.elf
-	@$(OBJCOPY) -O binary $< $@
+	@$(OBJCOPY) --set-section-flags .bss=alloc,load,contents -O binary $< $@
 	@echo built ... $(notdir $@)
 
 
