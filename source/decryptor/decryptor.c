@@ -8,6 +8,7 @@
 #include "decryptor/crypto.h"
 #include "decryptor/features.h"
 #include "sha256.h"
+#include "fatfs/sdmmc.h"
 
 #define BUFFER_ADDRESS  ((u8*) 0x21000000)
 #define BUFFER_MAX_SIZE (1 * 1024 * 1024)
@@ -463,7 +464,7 @@ u32 CreatePad(PadInfo *info)
 u32 DumpNand()
 {
     u8* buffer = BUFFER_ADDRESS;
-    u32 nand_size = (GetUnitPlatform() == PLATFORM_3DS) ? 0x3AF00000 : 0x4D800000;
+    u32 nand_size = getMMCDevice(0)->total_size * 0x200;
     u32 result = 0;
 
     Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
