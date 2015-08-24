@@ -9,6 +9,7 @@ install:
   - sudo perl devkitARMupdate.pl
 
 script:
+  - git submodule update --init --recursive
   - make gateway
   - mv output/Launcher.dat .
   - make clean

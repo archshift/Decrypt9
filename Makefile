@@ -100,27 +100,45 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: $(BUILD) clean all gateway bootstrap
+.PHONY: common clean all gateway bootstrap cakehax brahma
 
 #---------------------------------------------------------------------------------
-all: $(OUTPUT_D) gateway
+all: gateway
 
-$(OUTPUT_D):
-	@[ -d $@ ] || mkdir -p $@
-
-gateway: $(OUTPUT_D)
+common:
+	@[ -d $(OUTPUT_D) ] || mkdir -p $(OUTPUT_D)
 	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
+    
+submodules:
+	@-git submodule update --init --recursive
+
+gateway: common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
-	cp tools/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
+	cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
 	dd if=$(OUTPUT).bin of=$(OUTPUT_D)/Launcher.dat bs=1497296 seek=1 conv=notrunc
 
-bootstrap: $(OUTPUT_D)
-	@[ -d $(BUILD) ] || mkdir -p $(BUILD)
+bootstrap: common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=BOOTSTRAP
+
+cakehax: submodules common
+	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
+	@make dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
+	dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
+
+brahma: submodules bootstrap
+	@[ -d BrahmaLoader/data ] || mkdir -p BrahmaLoader/data
+	@cp $(OUTPUT).bin BrahmaLoader/data/payload.bin
+	@cp resources/BrahmaAppInfo BrahmaLoader/resources/AppInfo
+	@cp resources/BrahmaIcon.png BrahmaLoader/resources/icon.png
+	@make --no-print-directory -C BrahmaLoader
+	@mv BrahmaLoader/output/*.3dsx $(OUTPUT_D)
+	@mv BrahmaLoader/output/*.smdh $(OUTPUT_D)
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
+	@-make clean --no-print-directory -C CakeHax
+	@-make clean --no-print-directory -C BrahmaLoader
 	@rm -fr $(BUILD) $(OUTPUT_D)
 
 
@@ -138,7 +156,7 @@ $(OUTPUT).elf	:	$(OFILES)
 
 #---------------------------------------------------------------------------------
 %.bin: %.elf
-	@$(OBJCOPY) -O binary $< $@
+	@$(OBJCOPY) --set-section-flags .bss=alloc,load,contents -O binary $< $@
 	@echo built ... $(notdir $@)
 
 
