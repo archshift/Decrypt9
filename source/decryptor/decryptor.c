@@ -102,7 +102,7 @@ u32 DecryptTitlekeys(void)
         memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
         setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
         use_aeskey(0x3D);
-        aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CBC_DECRYPT_MODE);
+        aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CNT_TITLEKEY_MODE);
     }
 
     if (!DebugFileCreate("/decTitleKeys.bin", true))
