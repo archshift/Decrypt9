@@ -89,6 +89,7 @@ typedef struct {
 } __attribute__((packed)) PartitionInfo;
 
 u32 DecryptBuffer(DecryptBufferInfo *info);
+u32 DecryptTitlekey(TitleKeyEntry* entry);
 u32 CreatePad(PadInfo *info);
 u32 GetNandCtr(u8* ctr, u32 offset);
 u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, PartitionInfo* partition);

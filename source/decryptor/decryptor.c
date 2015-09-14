@@ -60,7 +60,19 @@ u32 DecryptBuffer(DecryptBufferInfo *info)
     }
 
     memcpy(info->CTR, ctr, 16);
+    
+    return 0;
+}
 
+u32 DecryptTitlekey(TitleKeyEntry* entry)
+{
+    DecryptBufferInfo info = {.keyslot = 0x3D, .setKeyY = 1, .size = 16, .buffer = entry->encryptedTitleKey, .mode = AES_CNT_TITLEKEY_MODE};
+    memset(info.CTR, 0, 16);
+    memcpy(info.CTR, entry->titleId, 8);
+    memcpy(info.keyY, (void *)common_keyy[entry->commonKeyIndex], 16);
+    
+    DecryptBuffer(&info);
+    
     return 0;
 }
 
@@ -82,7 +94,7 @@ u32 DumpTicket() {
     return 0;
 }
 
-u32 DecryptTitlekeys(void)
+u32 DecryptTitlekeysFile(void)
 {
     EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 
@@ -109,19 +121,8 @@ u32 DecryptTitlekeys(void)
     FileClose();
 
     Debug("Decrypting Title Keys...");
-
-    u8 ctr[16] __attribute__((aligned(32)));
-    u8 keyY[16] __attribute__((aligned(32)));
-    u32 i;
-    for (i = 0; i < info->n_entries; i++) {
-        memset(ctr, 0, 16);
-        memcpy(ctr, info->entries[i].titleId, 8);
-        set_ctr(ctr);
-        memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
-        setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
-        use_aeskey(0x3D);
-        aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CNT_TITLEKEY_MODE);
-    }
+    for (u32 i = 0; i < info->n_entries; i++)
+        DecryptTitlekey(&(info->entries[i]));
 
     if (!DebugFileCreate("/decTitleKeys.bin", true))
         return 1;
@@ -131,7 +132,72 @@ u32 DecryptTitlekeys(void)
     }
     FileClose();
 
-    Debug("Done!");
+    return 0;
+}
+
+u32 DecryptTitlekeysNand(void)
+{
+    PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u8* buffer = BUFFER_ADDRESS;
+    EncKeysInfo *info = (EncKeysInfo*) 0x20316000;
+    
+    u32 nKeys = 0;
+    u32 offset = 0;
+    u32 size = 0;
+    
+    Debug("Searching for ticket.db...");
+    if (SeekFileInNand(&offset, &size, NULL, "TICKET  DB ", ctrnand_info) != 0) {
+        Debug("Failed!");
+        return 1;
+    }
+    Debug("Found at %08X, size %uMB", offset, size / (1024 * 1024));
+    
+    Debug("Decrypting Title Keys...");
+    memset(info, 0, 0x10);
+    for (u32 t_offset = 0; t_offset < size; t_offset += NAND_SECTOR_SIZE * (SECTORS_PER_READ-1)) {
+        u32 read_bytes = min(NAND_SECTOR_SIZE * SECTORS_PER_READ, (size - t_offset));
+        ShowProgress(t_offset, size);
+        DecryptNandToMem(buffer, offset + t_offset, read_bytes, ctrnand_info);
+        for (u32 i = 0; i < read_bytes - NAND_SECTOR_SIZE; i++) {
+            if(memcmp(buffer + i, (u8*) "Root-CA00000003-XS0000000c", 26) == 0) {
+                u32 exid;
+                u8* titleId = buffer + i + 0x9C;
+                u32 commonKeyIndex = *(buffer + i + 0xB1);
+                u8* titlekey = buffer + i + 0x7F;
+                for (exid = 0; exid < nKeys; exid++)
+                    if (memcmp(titleId, info->entries[exid].titleId, 8) == 0)
+                        break;
+                if (exid < nKeys)
+                    continue; // continue if already dumped
+                memset(&(info->entries[nKeys]), 0, sizeof(TitleKeyEntry));
+                memcpy(info->entries[nKeys].titleId, titleId, 8);
+                memcpy(info->entries[nKeys].encryptedTitleKey, titlekey, 16);
+                info->entries[nKeys].commonKeyIndex = commonKeyIndex;
+                DecryptTitlekey(&(info->entries[nKeys]));
+                nKeys++;
+            }
+        }
+        if (nKeys == MAX_ENTRIES) {
+            Debug("Maximum number of titlekeys found");
+            break;
+        }
+    }
+    info->n_entries = nKeys;
+    ShowProgress(0, 0);
+    
+    Debug("Decrypted %u unique Title Keys", nKeys);
+    
+    if(nKeys > 0) {
+        if (!DebugFileCreate("/decTitleKeys.bin", true))
+            return 1;
+        if (!DebugFileWrite(info, 0x10 + nKeys * 0x20, 0)) {
+            FileClose();
+            return 1;
+        }
+        FileClose();
+    } else {
+        return 1;
+    }
 
     return 0;
 }

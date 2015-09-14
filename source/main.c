@@ -32,11 +32,11 @@ MenuInfo menu[] =
         }
     },
     {
-        "Titles Options",
+        "Titlekey Options",
         {
-            { "Titlekey Decrypt", &DecryptTitlekeys },
+            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile },
+            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand },
             { "Ticket Dump", &DumpTicket },
-            { NULL, NULL },
             { NULL, NULL }
         }
     },
