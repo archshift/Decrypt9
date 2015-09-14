@@ -64,6 +64,24 @@ u32 DecryptBuffer(DecryptBufferInfo *info)
     return 0;
 }
 
+u32 DumpTicket() {
+    PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u32 offset;
+    u32 size;
+    
+    Debug("Searching for ticket.db...");
+    if (SeekFileInNand(&offset, &size, NULL, "TICKET  DB ", ctrnand_info) != 0) {
+        Debug("Failed!");
+        return 1;
+    }
+    Debug("Found at %08X, size %uMB", offset, size / (1024 * 1024));
+    
+    if (DecryptNandToFile("ticket.db", offset, size, ctrnand_info) != 0)
+        return 1;
+    
+    return 0;
+}
+
 u32 DecryptTitlekeys(void)
 {
     EncKeysInfo *info = (EncKeysInfo*)0x20316000;
@@ -326,7 +344,7 @@ u32 GetNandCtr(u8* ctr, u32 offset)
                 }
             }
         }
-            
+        
         if (ctr_start == NULL) {
             Debug("CTR Start not found!");
             return 1;
@@ -346,6 +364,64 @@ u32 GetNandCtr(u8* ctr, u32 offset)
     add_ctr(ctr, offset / 0x10);
 
     return 0;
+}
+
+u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, PartitionInfo* partition)
+{
+    // poor mans NAND FAT file seeker:
+    // - can't handle long filenames
+    // - filename must be in FAT 8+3 format
+    // - doesn't search the root dir
+    // - dirs must not exceed 1024 entries
+    // - fragmentation not supported
+    
+    const static char* magic = ".          ";
+    const static char zeroes[8+3] = { 0x00 };
+    u8* buffer = BUFFER_ADDRESS;
+    u32 p_size = partition->size;
+    u32 p_offset = partition->offset;
+    
+    u32 cluster_size;
+    u32 cluster_start;
+    bool found = false;
+    
+    if (strnlen(filename, 16) != 8+3)
+        return 1;
+    
+    DecryptNandToMem(buffer, p_offset, NAND_SECTOR_SIZE, partition);
+    
+    // good FAT header description found here: http://www.compuphase.com/mbr_fat.htm
+    u32 fat_start = NAND_SECTOR_SIZE * (*((u16*) (buffer + 0x0E)));
+    u32 fat_size = NAND_SECTOR_SIZE * (*((u16*) (buffer + 0x16)) * buffer[0x10]);
+    u32 root_size = *((u16*) (buffer + 0x11)) * 0x20;
+    cluster_start = fat_start + fat_size + root_size;
+    cluster_size = buffer[0x0D] * NAND_SECTOR_SIZE;
+    
+    if (seekpos != NULL && cluster_start > *seekpos)
+        *seekpos = cluster_start;
+    
+    for (u32 i = (seekpos == NULL) ? cluster_start : *seekpos; i < p_size; i += cluster_size) {
+        DecryptNandToMem(buffer, p_offset + i, NAND_SECTOR_SIZE, partition);
+        if (memcmp(buffer, magic, 8+3) != 0)
+            continue;
+        DecryptNandToMem(buffer, p_offset + i, cluster_size, partition);
+        for (u32 j = 0; j < cluster_size; j += 0x20) {
+            if (memcmp(buffer + j, filename, 8+3) == 0) {
+                *offset = p_offset + cluster_start + (*((u16*) (buffer + j + 0x1A)) - 2) * cluster_size;
+                *size = *((u32*) (buffer + j + 0x1C));
+                if (*size > 0) {
+                    found = true;
+                    if (seekpos != NULL)
+                        *seekpos = i + cluster_size;
+                    break;
+                }
+            } else if (memcmp(buffer + j, zeroes, 8+3) == 0)
+                break;
+        }
+        if (found) break;
+    }
+    
+    return (found) ? 0 : 1;
 }
 
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)

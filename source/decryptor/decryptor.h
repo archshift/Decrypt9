@@ -91,6 +91,7 @@ typedef struct {
 u32 DecryptBuffer(DecryptBufferInfo *info);
 u32 CreatePad(PadInfo *info);
 u32 GetNandCtr(u8* ctr, u32 offset);
+u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, PartitionInfo* partition);
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition);
 u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo* partition);
 u32 DecryptNandPartition(PartitionInfo* p);
