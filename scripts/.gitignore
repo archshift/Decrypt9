@@ -1,2 +1,6 @@
 # Ignore 3DS CDN downloads
 /0004*
+# Ignore BIN files and CIA / 3DS
+*.bin
+*.3ds
+*.cia 
