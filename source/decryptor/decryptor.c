@@ -61,11 +61,41 @@ u32 DecryptBuffer(DecryptBufferInfo *info)
     }
 
     memcpy(info->CTR, ctr, 16);
-
+    
     return 0;
 }
 
-u32 DecryptTitlekeys(void)
+u32 DecryptTitlekey(TitleKeyEntry* entry)
+{
+    DecryptBufferInfo info = {.keyslot = 0x3D, .setKeyY = 1, .size = 16, .buffer = entry->encryptedTitleKey, .mode = AES_CNT_TITLEKEY_MODE};
+    memset(info.CTR, 0, 16);
+    memcpy(info.CTR, entry->titleId, 8);
+    memcpy(info.keyY, (void *)common_keyy[entry->commonKeyIndex], 16);
+    
+    DecryptBuffer(&info);
+    
+    return 0;
+}
+
+u32 DumpTicket() {
+    PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u32 offset;
+    u32 size;
+    
+    Debug("Searching for ticket.db...");
+    if (SeekFileInNand(&offset, &size, NULL, "TICKET  DB ", ctrnand_info) != 0) {
+        Debug("Failed!");
+        return 1;
+    }
+    Debug("Found at %08X, size %uMB", offset, size / (1024 * 1024));
+    
+    if (DecryptNandToFile("ticket.db", offset, size, ctrnand_info) != 0)
+        return 1;
+    
+    return 0;
+}
+
+u32 DecryptTitlekeysFile(void)
 {
     EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 
@@ -92,19 +122,8 @@ u32 DecryptTitlekeys(void)
     FileClose();
 
     Debug("Decrypting Title Keys...");
-
-    u8 ctr[16] __attribute__((aligned(32)));
-    u8 keyY[16] __attribute__((aligned(32)));
-    u32 i;
-    for (i = 0; i < info->n_entries; i++) {
-        memset(ctr, 0, 16);
-        memcpy(ctr, info->entries[i].titleId, 8);
-        set_ctr(ctr);
-        memcpy(keyY, (void *)common_keyy[info->entries[i].commonKeyIndex], 16);
-        setup_aeskey(0x3D, AES_BIG_INPUT|AES_NORMAL_INPUT, keyY);
-        use_aeskey(0x3D);
-        aes_decrypt(info->entries[i].encryptedTitleKey, info->entries[i].encryptedTitleKey, ctr, 1, AES_CNT_TITLEKEY_MODE);
-    }
+    for (u32 i = 0; i < info->n_entries; i++)
+        DecryptTitlekey(&(info->entries[i]));
 
     if (!DebugFileCreate("/decTitleKeys.bin", true))
         return 1;
@@ -114,7 +133,72 @@ u32 DecryptTitlekeys(void)
     }
     FileClose();
 
-    Debug("Done!");
+    return 0;
+}
+
+u32 DecryptTitlekeysNand(void)
+{
+    PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u8* buffer = BUFFER_ADDRESS;
+    EncKeysInfo *info = (EncKeysInfo*) 0x20316000;
+    
+    u32 nKeys = 0;
+    u32 offset = 0;
+    u32 size = 0;
+    
+    Debug("Searching for ticket.db...");
+    if (SeekFileInNand(&offset, &size, NULL, "TICKET  DB ", ctrnand_info) != 0) {
+        Debug("Failed!");
+        return 1;
+    }
+    Debug("Found at %08X, size %uMB", offset, size / (1024 * 1024));
+    
+    Debug("Decrypting Title Keys...");
+    memset(info, 0, 0x10);
+    for (u32 t_offset = 0; t_offset < size; t_offset += NAND_SECTOR_SIZE * (SECTORS_PER_READ-1)) {
+        u32 read_bytes = min(NAND_SECTOR_SIZE * SECTORS_PER_READ, (size - t_offset));
+        ShowProgress(t_offset, size);
+        DecryptNandToMem(buffer, offset + t_offset, read_bytes, ctrnand_info);
+        for (u32 i = 0; i < read_bytes - NAND_SECTOR_SIZE; i++) {
+            if(memcmp(buffer + i, (u8*) "Root-CA00000003-XS0000000c", 26) == 0) {
+                u32 exid;
+                u8* titleId = buffer + i + 0x9C;
+                u32 commonKeyIndex = *(buffer + i + 0xB1);
+                u8* titlekey = buffer + i + 0x7F;
+                for (exid = 0; exid < nKeys; exid++)
+                    if (memcmp(titleId, info->entries[exid].titleId, 8) == 0)
+                        break;
+                if (exid < nKeys)
+                    continue; // continue if already dumped
+                memset(&(info->entries[nKeys]), 0, sizeof(TitleKeyEntry));
+                memcpy(info->entries[nKeys].titleId, titleId, 8);
+                memcpy(info->entries[nKeys].encryptedTitleKey, titlekey, 16);
+                info->entries[nKeys].commonKeyIndex = commonKeyIndex;
+                DecryptTitlekey(&(info->entries[nKeys]));
+                nKeys++;
+            }
+        }
+        if (nKeys == MAX_ENTRIES) {
+            Debug("Maximum number of titlekeys found");
+            break;
+        }
+    }
+    info->n_entries = nKeys;
+    ShowProgress(0, 0);
+    
+    Debug("Decrypted %u unique Title Keys", nKeys);
+    
+    if(nKeys > 0) {
+        if (!DebugFileCreate("/decTitleKeys.bin", true))
+            return 1;
+        if (!DebugFileWrite(info, 0x10 + nKeys * 0x20, 0)) {
+            FileClose();
+            return 1;
+        }
+        FileClose();
+    } else {
+        return 1;
+    }
 
     return 0;
 }
@@ -327,7 +411,7 @@ u32 GetNandCtr(u8* ctr, u32 offset)
                 }
             }
         }
-            
+        
         if (ctr_start == NULL) {
             Debug("CTR Start not found!");
             return 1;
@@ -347,6 +431,64 @@ u32 GetNandCtr(u8* ctr, u32 offset)
     add_ctr(ctr, offset / 0x10);
 
     return 0;
+}
+
+u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, PartitionInfo* partition)
+{
+    // poor mans NAND FAT file seeker:
+    // - can't handle long filenames
+    // - filename must be in FAT 8+3 format
+    // - doesn't search the root dir
+    // - dirs must not exceed 1024 entries
+    // - fragmentation not supported
+    
+    const static char* magic = ".          ";
+    const static char zeroes[8+3] = { 0x00 };
+    u8* buffer = BUFFER_ADDRESS;
+    u32 p_size = partition->size;
+    u32 p_offset = partition->offset;
+    
+    u32 cluster_size;
+    u32 cluster_start;
+    bool found = false;
+    
+    if (strnlen(filename, 16) != 8+3)
+        return 1;
+    
+    DecryptNandToMem(buffer, p_offset, NAND_SECTOR_SIZE, partition);
+    
+    // good FAT header description found here: http://www.compuphase.com/mbr_fat.htm
+    u32 fat_start = NAND_SECTOR_SIZE * (*((u16*) (buffer + 0x0E)));
+    u32 fat_size = NAND_SECTOR_SIZE * (*((u16*) (buffer + 0x16)) * buffer[0x10]);
+    u32 root_size = *((u16*) (buffer + 0x11)) * 0x20;
+    cluster_start = fat_start + fat_size + root_size;
+    cluster_size = buffer[0x0D] * NAND_SECTOR_SIZE;
+    
+    if (seekpos != NULL && cluster_start > *seekpos)
+        *seekpos = cluster_start;
+    
+    for (u32 i = (seekpos == NULL) ? cluster_start : *seekpos; i < p_size; i += cluster_size) {
+        DecryptNandToMem(buffer, p_offset + i, NAND_SECTOR_SIZE, partition);
+        if (memcmp(buffer, magic, 8+3) != 0)
+            continue;
+        DecryptNandToMem(buffer, p_offset + i, cluster_size, partition);
+        for (u32 j = 0; j < cluster_size; j += 0x20) {
+            if (memcmp(buffer + j, filename, 8+3) == 0) {
+                *offset = p_offset + cluster_start + (*((u16*) (buffer + j + 0x1A)) - 2) * cluster_size;
+                *size = *((u32*) (buffer + j + 0x1C));
+                if (*size > 0) {
+                    found = true;
+                    if (seekpos != NULL)
+                        *seekpos = i + cluster_size;
+                    break;
+                }
+            } else if (memcmp(buffer + j, zeroes, 8+3) == 0)
+                break;
+        }
+        if (found) break;
+    }
+    
+    return (found) ? 0 : 1;
 }
 
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)

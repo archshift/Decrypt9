@@ -23,14 +23,23 @@ MenuInfo menu[] =
         }
     },
     {
-        "Other Options",
+        "NAND Options",
         {
             { "NAND Backup", &DumpNand },
             { "TWL / AGB Partitions Dump", &DecryptTwlAgbPartitions },
             { "CTR Partitions Dump", &DecryptCtrPartitions },
-            { "Titlekey Decrypt", &DecryptTitlekeys }
+            { NULL, NULL }
         }
-    }
+    },
+    {
+        "Titlekey Options",
+        {
+            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile },
+            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand },
+            { "Ticket Dump", &DumpTicket },
+            { NULL, NULL }
+        }
+    },
 };
         
 
