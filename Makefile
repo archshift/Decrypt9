@@ -100,7 +100,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: common clean all gateway bootstrap cakehax brahma
+.PHONY: common clean all gateway bootstrap cakehax brahma release
 
 #---------------------------------------------------------------------------------
 all: gateway
@@ -114,8 +114,8 @@ submodules:
 
 gateway: common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
-	cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
-	dd if=$(OUTPUT).bin of=$(OUTPUT_D)/Launcher.dat bs=1497296 seek=1 conv=notrunc
+	@cp resources/LauncherTemplate.dat $(OUTPUT_D)/Launcher.dat
+	@dd if=$(OUTPUT).bin of=$(OUTPUT_D)/Launcher.dat bs=1497296 seek=1 conv=notrunc
 
 bootstrap: common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=BOOTSTRAP
@@ -123,23 +123,39 @@ bootstrap: common
 cakehax: submodules common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
 	@make dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
-	dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
+	@dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
 
 brahma: submodules bootstrap
 	@[ -d BrahmaLoader/data ] || mkdir -p BrahmaLoader/data
 	@cp $(OUTPUT).bin BrahmaLoader/data/payload.bin
 	@cp resources/BrahmaAppInfo BrahmaLoader/resources/AppInfo
 	@cp resources/BrahmaIcon.png BrahmaLoader/resources/icon.png
-	@make --no-print-directory -C BrahmaLoader
+	@make --no-print-directory -C BrahmaLoader APP_TITLE=$(TARGET)
 	@mv BrahmaLoader/output/*.3dsx $(OUTPUT_D)
 	@mv BrahmaLoader/output/*.smdh $(OUTPUT_D)
+	
+release:
+	@rm -fr $(BUILD) $(OUTPUT_D) $(CURDIR)/release
+	@make --no-print-directory gateway
+	@-make --no-print-directory cakehax
+	@rm -fr $(BUILD) $(OUTPUT).bin $(OUTPUT).elf $(CURDIR)/$(LOADER)/data
+	@-make --no-print-directory brahma
+	@[ -d $(CURDIR)/release ] || mkdir -p $(CURDIR)/release
+	@[ -d $(CURDIR)/release/$(TARGET) ] || mkdir -p $(CURDIR)/release/$(TARGET)
+	@[ -d $(CURDIR)/release/scripts ] || mkdir -p $(CURDIR)/release/scripts
+	@cp $(OUTPUT_D)/Launcher.dat $(CURDIR)/release
+	@cp $(OUTPUT).bin $(CURDIR)/release
+	@-cp $(OUTPUT).dat $(CURDIR)/release
+	@-cp $(OUTPUT).3dsx $(CURDIR)/release/$(TARGET)
+	@-cp $(OUTPUT).smdh $(CURDIR)/release/$(TARGET)
+	@cp $(CURDIR)/scripts/*.py $(CURDIR)/release/scripts
 
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
 	@-make clean --no-print-directory -C CakeHax
 	@-make clean --no-print-directory -C BrahmaLoader
-	@rm -fr $(BUILD) $(OUTPUT_D)
+	@rm -fr $(BUILD) $(OUTPUT_D) release
 
 
 #---------------------------------------------------------------------------------
