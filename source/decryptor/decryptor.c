@@ -141,13 +141,31 @@ u32 DecryptTitlekey(TitleKeyEntry* entry)
     return 0;
 }
 
+u32 DumpSeedsave()
+{
+    PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u32 offset;
+    u32 size;
+    
+    Debug("Searching for seedsave...");
+    if (SeekFileInNand(&offset, &size, "DATA       ???????????SYSDATA    0001000F   00000000   ", ctrnand_info) != 0) {
+        Debug("Failed!");
+        return 1;
+    }
+    Debug("Found at %08X, size %ukB", offset, size / 1024);
+    
+    if (DecryptNandToFile("/seedsave.bin", offset, size, ctrnand_info) != 0)
+        return 1;
+    
+    return 0;
+}
 u32 DumpTicket() {
     PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
     u32 offset;
     u32 size;
     
     Debug("Searching for ticket.db...");
-    if (SeekFileInNand(&offset, &size, NULL, "TICKET  DB ", ctrnand_info) != 0) {
+    if (SeekFileInNand(&offset, &size, "DBS        TICKET  DB ", ctrnand_info) != 0) {
         Debug("Failed!");
         return 1;
     }
@@ -211,7 +229,7 @@ u32 DecryptTitlekeysNand(void)
     u32 size = 0;
     
     Debug("Searching for ticket.db...");
-    if (SeekFileInNand(&offset, &size, NULL, "TICKET  DB ", ctrnand_info) != 0) {
+    if (SeekFileInNand(&offset, &size, "DBS        TICKET  DB ", ctrnand_info) != 0) {
         Debug("Failed!");
         return 1;
     }
@@ -525,16 +543,15 @@ u32 GetNandCtr(u8* ctr, u32 offset)
     return 0;
 }
 
-u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, PartitionInfo* partition)
+u32 SeekFileInNand(u32* offset, u32* size, const char* path, PartitionInfo* partition)
 {
     // poor mans NAND FAT file seeker:
+    // - path must be in FAT 8+3 format, without dots or slashes
+    //   example: DIR1_______DIR2_______FILENAMEEXT
     // - can't handle long filenames
-    // - filename must be in FAT 8+3 format
-    // - doesn't search the root dir
     // - dirs must not exceed 1024 entries
     // - fragmentation not supported
     
-    const static char* magic = ".          ";
     const static char zeroes[8+3] = { 0x00 };
     u8* buffer = BUFFER_ADDRESS;
     u32 p_size = partition->size;
@@ -544,7 +561,7 @@ u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, P
     u32 cluster_start;
     bool found = false;
     
-    if (strnlen(filename, 16) != 8+3)
+    if (strnlen(path, 256) % (8+3) != 0)
         return 1;
     
     DecryptNandToMem(buffer, p_offset, NAND_SECTOR_SIZE, partition);
@@ -556,28 +573,27 @@ u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, P
     cluster_start = fat_start + fat_size + root_size;
     cluster_size = buffer[0x0D] * NAND_SECTOR_SIZE;
     
-    if (seekpos != NULL && cluster_start > *seekpos)
-        *seekpos = cluster_start;
-    
-    for (u32 i = (seekpos == NULL) ? cluster_start : *seekpos; i < p_size; i += cluster_size) {
-        DecryptNandToMem(buffer, p_offset + i, NAND_SECTOR_SIZE, partition);
-        if (memcmp(buffer, magic, 8+3) != 0)
-            continue;
-        DecryptNandToMem(buffer, p_offset + i, cluster_size, partition);
-        for (u32 j = 0; j < cluster_size; j += 0x20) {
-            if (memcmp(buffer + j, filename, 8+3) == 0) {
-                *offset = p_offset + cluster_start + (*((u16*) (buffer + j + 0x1A)) - 2) * cluster_size;
-                *size = *((u32*) (buffer + j + 0x1C));
-                if (*size > 0) {
-                    found = true;
-                    if (seekpos != NULL)
-                        *seekpos = i + cluster_size;
-                    break;
-                }
-            } else if (memcmp(buffer + j, zeroes, 8+3) == 0)
-                break;
+    for (*offset = p_offset + fat_start + fat_size; strnlen(path, 256) >= 8+3; path += 8+3) {
+        if (*offset - p_offset > p_size)
+            return 1;
+        found = false;
+        DecryptNandToMem(buffer, *offset, cluster_size, partition);
+        for (u32 i = 0x00; i < cluster_size; i += 0x20) {
+            // skip invisible, deleted and lfn entries
+            if ((buffer[i] == '.') || (buffer[i] == 0xE5) || (buffer[i+0x0B] == 0x0F))
+                continue;
+            else if (memcmp(buffer + i, zeroes, 8+3) == 0)
+                return 1;
+            u32 p; // search for path in fat folder structure, accept '?' wildcards
+            for (p = 0; (p < 8+3) && (path[p] == '?' || buffer[i+p] == path[p]); p++);
+            if (p != 8+3) continue;
+            // entry found, store offset and move on
+            *offset = p_offset + cluster_start + (*((u16*) (buffer + i + 0x1A)) - 2) * cluster_size;
+            *size = *((u32*) (buffer + i + 0x1C));
+            found = true;
+            break;
         }
-        if (found) break;
+        if (!found) break;
     }
     
     return (found) ? 0 : 1;
