@@ -24,7 +24,22 @@ bool DebugFileWrite(void* buf, size_t size, size_t foffset);
 /** Gets the size of the opened file */
 size_t FileGetSize();
 
+/** Creates a directory */
+bool DirMake(const char* path);
+bool DebugDirMake(const char* path);
+
+/** Opens an existing directory */
+bool DirOpen(const char* path);
+bool DebugDirOpen(const char* path);
+
+/** Reads next file name to fname from opened directory,
+    returns false if all files in directory are processed.
+    fname needs to be allocated to fsize bytes minimum. */
+bool DirRead(char* fname, int fsize);
+
 /** Gets remaining space on SD card in bytes */
 uint64_t RemainingStorageSpace();
 
 void FileClose();
+
+void DirClose();

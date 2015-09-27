@@ -20,7 +20,7 @@
 
 #include <string.h>
 
-#include "sha256.h"
+#include "decryptor/sha256.h"
 
 #define GET_UINT32(n,b,i)                       \
 {                                               \
