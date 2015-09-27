@@ -26,9 +26,9 @@ MenuInfo menu[] =
         "NAND Options",
         {
             { "NAND Backup", &DumpNand },
-            { "TWL / AGB Partitions Dump", &DecryptTwlAgbPartitions },
-            { "CTR Partitions Dump", &DecryptCtrPartitions },
-            { NULL, NULL }
+            { "All Partitions Dump", &DecryptAllNandPartitions },
+            { "TWLNAND Partition Dump", &DecryptTwlNandPartition },
+            { "CTRNAND Partition Dump", &DecryptCtrNandPartition }
         }
     },
     {

@@ -641,28 +641,30 @@ u32 DecryptNandPartition(PartitionInfo* p) {
         Debug("Decryption error, please contact us");
         return 1;
     }
-    snprintf(filename, 32, "%s.bin", p->name);
+    snprintf(filename, 32, "/%s.bin", p->name);
     
     return DecryptNandToFile(filename, p->offset, p->size, p);
 }
 
-u32 DecryptTwlAgbPartitions() {
+u32 DecryptAllNandPartitions() {
     u32 result = 0;
+    bool o3ds = (GetUnitPlatform() == PLATFORM_3DS);
     
     result |= DecryptNandPartition(&(partitions[0])); // TWLN
     result |= DecryptNandPartition(&(partitions[1])); // TWLP
     result |= DecryptNandPartition(&(partitions[2])); // AGBSAVE
-    
-    return result;
-}
-    
-u32 DecryptCtrPartitions() {
-    u32 result = 0;
-    bool o3ds = (GetUnitPlatform() == PLATFORM_3DS);
-    
     result |= DecryptNandPartition(&(partitions[3])); // FIRM0
     result |= DecryptNandPartition(&(partitions[4])); // FIRM1
     result |= DecryptNandPartition(&(partitions[(o3ds) ? 5 : 6])); // CTRNAND O3DS / N3DS
 
     return result;
+}
+
+u32 DecryptTwlNandPartition() {
+    return DecryptNandPartition(&(partitions[0])); // TWLN
+}
+    
+u32 DecryptCtrNandPartition() {
+    bool o3ds = (GetUnitPlatform() == PLATFORM_3DS);
+    return DecryptNandPartition(&(partitions[(o3ds) ? 5 : 6])); // CTRNAND O3DS / N3DS
 }
