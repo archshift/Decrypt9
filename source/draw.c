@@ -18,7 +18,11 @@
 #define START_X 10
 #define END_X   (SCREEN_WIDTH - 10)
 
-static int current_y = START_Y;
+#define STEP_Y      10
+#define N_CHARS_Y   ((END_Y - START_Y) / STEP_Y)
+#define N_CHARS_X   (((END_X - START_X) / 8) + 1)
+
+static char debugstr[N_CHARS_X * N_CHARS_Y] = { 0 };
 
 void ClearScreen(u8* screen, int color)
 {
@@ -73,28 +77,31 @@ void DrawStringF(int x, int y, const char *format, ...)
 
 void DebugClear()
 {
+    memset(debugstr, 0x00, N_CHARS_X * N_CHARS_Y);
     ClearScreen(TOP_SCREEN0, BG_COLOR);
     ClearScreen(TOP_SCREEN1, BG_COLOR);
-    current_y = START_Y;
 }
 
 void Debug(const char *format, ...)
 {
-    char str[256] = {};
+    char tempstr[N_CHARS_X] = { 0 };
     va_list va;
-
+    
     va_start(va, format);
-    vsnprintf(str, ((END_X - START_X) / 8) + 1, format, va);
+    vsnprintf(tempstr, N_CHARS_X, format, va);
     va_end(va);
     
-    if (current_y >= END_Y) {
-        DebugClear();
+    memmove(debugstr + N_CHARS_X, debugstr, N_CHARS_X * (N_CHARS_Y - 1));
+    snprintf(debugstr, N_CHARS_X, "%-*.*s", N_CHARS_X - 1, N_CHARS_X - 1, tempstr);
+    
+    int pos_y = START_Y;
+    for (char* str = debugstr + (N_CHARS_X * (N_CHARS_Y - 1)); str >= debugstr; str -= N_CHARS_X) {
+        if (str[0] != '\0') {
+            DrawString(TOP_SCREEN0, str, START_X, pos_y, FONT_COLOR, BG_COLOR);
+            DrawString(TOP_SCREEN1, str, START_X, pos_y, FONT_COLOR, BG_COLOR);
+            pos_y += STEP_Y;
+        }
     }
-
-    DrawString(TOP_SCREEN0, str, START_X, current_y, FONT_COLOR, BG_COLOR);
-    DrawString(TOP_SCREEN1, str, START_X, current_y, FONT_COLOR, BG_COLOR);
-
-    current_y += 10;
 }
 
 void ShowProgress(u64 current, u64 total)
