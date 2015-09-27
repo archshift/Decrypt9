@@ -247,26 +247,47 @@ u32 NcchPadgen()
         FileClose();
         return 1;
     }
-
     if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
         FileClose();
         Debug("Too many/few entries in ncchinfo.bin");
         return 1;
     }
-    if (info->ncch_info_version != 0xF0000004) {
+    if (info->ncch_info_version == 0xF0000004) { // ncchinfo v4
+        if (!DebugFileRead(info->entries, info->n_entries * sizeof(NcchInfoEntry), 16)) {
+            FileClose();
+            return 1;
+        }
+    } else if (info->ncch_info_version == 0xF0000003) { // ncchinfo v3
+        // read ncchinfo v3 entry & convert to ncchinfo v4
+        for (u32 i = 0; i < info->n_entries; i++) {
+            u8* entry_data = (u8*) (info->entries + i);
+            if (!DebugFileRead(entry_data, 160, 16 + (160*i))) {
+                FileClose();
+                return 1;
+            }
+            memmove(entry_data + 56, entry_data + 48, 112);
+            *(u64*) (entry_data + 48) = 0;
+        }
+    } else { // unknown file / ncchinfo version
         FileClose();
-        Debug("Wrong version ncchinfo.bin");
-        return 1;
-    }
-    if (!DebugFileRead(info->entries, info->n_entries * sizeof(NcchInfoEntry), 16)) {
-        FileClose();
+        Debug("Incompatible version ncchinfo.bin");
         return 1;
     }
     FileClose();
 
     Debug("Number of entries: %i", info->n_entries);
 
-    for(u32 i = 0; i < info->n_entries; i++) {
+    for (u32 i = 0; i < info->n_entries; i++) { // check and fix filenames
+        char* filename = info->entries[i].filename;
+        if (filename[1] == 0x00) { // convert UTF-16 -> UTF-8
+            for (u32 j = 1; j < (112 / 2); j++)
+                filename[j] = filename[j*2];
+        }
+        if (memcmp(filename, "sdmc:", 5) == 0) // fix sdmc: prefix
+            memmove(filename, filename + 5, 112 - 5);
+    }
+            
+    for (u32 i = 0; i < info->n_entries; i++) {
         Debug("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
         PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb, .mode = AES_CNT_CTRNAND_MODE};
@@ -298,11 +319,18 @@ u32 NcchPadgen()
         else
             memcpy(padInfo.keyY, info->entries[i].keyY, 16);
 
-        if(info->entries[i].uses7xCrypto == 0xA) // won't work on an Old 3DS
+        if (info->entries[i].uses7xCrypto == 0xA) { 
+            if (GetUnitPlatform() == PLATFORM_3DS) { // won't work on an Old 3DS
+                Debug("This can only be generated on N3DS!");
+                return 1;
+            }
             padInfo.keyslot = 0x18;
-        else if(info->entries[i].uses7xCrypto >> 8 == 0xDEC0DE) // magic value to manually specify keyslot
+        } else if (info->entries[i].uses7xCrypto == 0xB) {
+            Debug("Secure4 xorpad cannot be generated yet!");
+            return 1;
+        } else if(info->entries[i].uses7xCrypto >> 8 == 0xDEC0DE) // magic value to manually specify keyslot
             padInfo.keyslot = info->entries[i].uses7xCrypto & 0x3F;
-        else if(info->entries[i].uses7xCrypto)
+        else if (info->entries[i].uses7xCrypto)
             padInfo.keyslot = 0x25;
         else
             padInfo.keyslot = 0x2C;
