@@ -36,4 +36,4 @@ void DrawStringF(int x, int y, const char *format, ...);
 void DebugClear();
 void Debug(const char *format, ...);
 
-void ShowProgress(u32 current, u32 total);
+void ShowProgress(u64 current, u64 total);

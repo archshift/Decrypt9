@@ -54,7 +54,7 @@ typedef struct {
     u32  size;
     u32  mode;
     u8*  buffer;
-} __attribute__((packed)) DecryptBufferInfo;
+} __attribute__((packed)) CryptBufferInfo;
 
 typedef struct {
     u32  keyslot;
@@ -88,7 +88,7 @@ typedef struct {
     u32 mode;
 } __attribute__((packed)) PartitionInfo;
 
-u32 DecryptBuffer(DecryptBufferInfo *info);
+u32 CryptBuffer(CryptBufferInfo *info);
 u32 DecryptTitlekey(TitleKeyEntry* entry);
 u32 CreatePad(PadInfo *info);
 u32 GetNandCtr(u8* ctr, u32 offset);
@@ -96,3 +96,7 @@ u32 SeekFileInNand(u32* offset, u32* size, u32* seekpos, const char* filename, P
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition);
 u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo* partition);
 u32 DecryptNandPartition(PartitionInfo* p);
+
+u32 EncryptMemToNand(u8* buffer, u32 offset, u32 size, PartitionInfo* partition);
+u32 EncryptFileToNand(const char* filename, u32 offset, u32 size, PartitionInfo* partition);
+u32 InjectNandPartition(PartitionInfo* p);

@@ -16,27 +16,36 @@ MenuInfo menu[] =
     {
         "XORpad Options",
         {
-            { "NCCH Padgen", &NcchPadgen },
-            { "SD Padgen", &SdPadgen },
-            { "CTRNAND Padgen", &CtrNandPadgen },
-            { "TWLNAND Padgen", &TwlNandPadgen }
+            { "NCCH Padgen", &NcchPadgen, 0 },
+            { "SD Padgen", &SdPadgen, 0 },
+            { "CTRNAND Padgen", &CtrNandPadgen, 0 },
+            { "TWLNAND Padgen", &TwlNandPadgen, 0 }
         }
     },
     {
-        "NAND Options",
+        "NAND Options 1",
         {
-            { "NAND Backup", &DumpNand },
-            { "All Partitions Dump", &DecryptAllNandPartitions },
-            { "TWLNAND Partition Dump", &DecryptTwlNandPartition },
-            { "CTRNAND Partition Dump", &DecryptCtrNandPartition }
+            { "NAND Backup", &DumpNand, 0 },
+            { "All Partitions Dump", &DecryptAllNandPartitions, 0 },
+            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, 0 },
+            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, 0 }
+        }
+    },
+    {
+        "NAND Options 2",
+        {
+            { "NAND Restore", &RestoreNand, 1 },
+            { "All Partitions Inject", &InjectAllNandPartitions, 1 },
+            { "TWLNAND Partition Inject", &InjectTwlNandPartition, 1 },
+            { "CTRNAND Partition Inject", &InjectCtrNandPartition, 1 }
         }
     },
     {
         "Titlekey Options",
         {
-            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile },
-            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand },
-            { "Ticket Dump", &DumpTicket },
+            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, 0 },
+            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, 0 },
+            { "Ticket Dump", &DumpTicket, 0 },
             { NULL, NULL }
         }
     },

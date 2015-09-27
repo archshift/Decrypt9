@@ -97,10 +97,10 @@ void Debug(const char *format, ...)
     current_y += 10;
 }
 
-void ShowProgress(u32 current, u32 total)
+void ShowProgress(u64 current, u64 total)
 {
     if (total > 0)
-        DrawStringF(SCREEN_WIDTH - 40, SCREEN_HEIGHT - 20, "%3i%%", current / (total/100));
+        DrawStringF(SCREEN_WIDTH - 40, SCREEN_HEIGHT - 20, "%3llu%%", (current * 100) / total);
     else
         DrawStringF(SCREEN_WIDTH - 40, SCREEN_HEIGHT - 20, "    ");
 }
