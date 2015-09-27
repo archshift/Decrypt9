@@ -159,6 +159,88 @@ u32 DumpSeedsave()
     
     return 0;
 }
+
+u32 UpdateSeedDb()
+{
+    PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u8* buffer = BUFFER_ADDRESS;
+    SeedInfo *seedinfo = (SeedInfo*) 0x20400000;
+    
+    u32 nNewSeeds = 0;
+    u32 offset;
+    u32 size;
+    
+    // load full seedsave to memory
+    Debug("Searching for seedsave...");
+    if (SeekFileInNand(&offset, &size, "DATA       ???????????SYSDATA    0001000F   00000000   ", ctrnand_info) != 0) {
+        Debug("Failed!");
+        return 1;
+    }
+    Debug("Found at %08X, size %ukB", offset, size / 1024);
+    if (size != 0xAC000) {
+        Debug("Expected %ukB, failed!", 0xAC000);
+        return 1;
+    }
+    DecryptNandToMem(buffer, offset, size, ctrnand_info);
+    
+    // load / create seeddb.bin
+    if (DebugFileOpen("/seeddb.bin")) {
+        if (!DebugFileRead(seedinfo, 16, 0)) {
+            FileClose();
+            return 1;
+        }
+        if (seedinfo->n_entries > MAX_ENTRIES) {
+            Debug("seeddb.bin seems to be corrupt!");
+            FileClose();
+            return 1;
+        }
+        if (!DebugFileRead(seedinfo->entries, seedinfo->n_entries * sizeof(SeedInfoEntry), 16)) {
+            FileClose();
+            return 1;
+        }
+    } else {
+        if (!DebugFileCreate("/seeddb.bin", true))
+            return 1;
+        memset(seedinfo, 0x00, 16);
+    }
+    
+    // search and extract seeds
+    for ( size_t i = 0; i < 2000; i++ ) {
+        static const u8 magic[4] = { 0x00, 0x00, 0x04, 0x00 };
+        u8* titleId = buffer + 0x7000 + (i*8);
+        u8* seed = buffer + 0x7000 + (2000*8) + (i*16);
+        if (memcmp(titleId + 4, magic, 4) != 0) continue;
+        // seed found, check if it already exists
+        u32 entryPos = 0;
+        for (entryPos = 0; entryPos < seedinfo->n_entries; entryPos++)
+            if (memcmp(titleId, &(seedinfo->entries[entryPos].titleId), 8) == 0) break;
+        if (entryPos < seedinfo->n_entries) {
+            Debug("Found %08X%08X seed (duplicate)", *((u32*) (titleId + 4)), *((u32*) titleId));
+            continue;
+        }
+        // seed is new, create a new entry
+        Debug("Found %08X%08X seed (new)", *((u32*) (titleId + 4)), *((u32*) titleId));
+        memset(&(seedinfo->entries[entryPos]), 0x00, sizeof(SeedInfoEntry));
+        memcpy(&(seedinfo->entries[entryPos].titleId), titleId, 8);
+        memcpy(&(seedinfo->entries[entryPos].external_seed), seed, 16);
+        seedinfo->n_entries++;
+        nNewSeeds++;
+    }
+    
+    if (nNewSeeds == 0) {
+        Debug("Found no new seeds, %i total", seedinfo->n_entries);
+        FileClose();
+        return 1;
+    }
+    
+    Debug("Found %i new seeds, %i total", nNewSeeds, seedinfo->n_entries);
+    if (!DebugFileWrite(seedinfo, 16 + seedinfo->n_entries * sizeof(SeedInfoEntry), 0))
+        return 1;
+    FileClose();
+    
+    return 0;
+}
+
 u32 DumpTicket() {
     PartitionInfo* ctrnand_info = &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
     u32 offset;

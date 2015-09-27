@@ -54,8 +54,8 @@ MenuInfo menu[] =
         {
             { "Titlekey Decrypt", &DecryptTitlekeysNand, 0, 1 },
             { "Ticket Dump", &DumpTicket, 0, 1 },
-            { "Seedsave Dump", &DumpSeedsave, 0, 1 },
-            { NULL, NULL, 0, 0 }
+            { "Update SeedDB", &UpdateSeedDb, 0, 1 },
+            { "Seedsave Dump", &DumpSeedsave, 0, 1 }
         }
     }
 };
