@@ -37,6 +37,70 @@ static PartitionInfo partitions[] = {
     { "CTRNAND", {0xE9, 0x00, 0x00, 0x43, 0x54, 0x52, 0x20, 0x20}, 0x0B95AE00, 0x41D2D200, 0x5, AES_CNT_CTRNAND_MODE }  // N3DS
 };
 
+static u32 emunand_header = 0;
+static u32 emunand_offset = 0;
+
+
+u32 SetNand(u32 use_emunand)
+{
+    u8* buffer = BUFFER_ADDRESS;
+    
+    if (use_emunand) {
+        u32 nand_size_sectors = getMMCDevice(0)->total_size;
+        // check for Gateway type EmuNAND
+        sdmmc_sdcard_readsectors(nand_size_sectors, 1, buffer);
+        if (memcmp(buffer + 0x100, "NCSD", 4) == 0) {
+            emunand_header = nand_size_sectors;
+            emunand_offset = 0;
+            Debug("Using EmuNAND @ %06X/%06X", emunand_header, emunand_offset);
+            return 0;
+        }
+        // check for RedNAND type EmuNAND
+        sdmmc_sdcard_readsectors(1, 1, buffer);
+        if (memcmp(buffer + 0x100, "NCSD", 4) == 0) {
+            emunand_header = 1;
+            emunand_offset = 1;
+            Debug("Using RedNAND @ %06X/%06X", emunand_header, emunand_offset);
+            return 0;
+        }
+        // no EmuNAND found
+        Debug("EmuNAND is not available");
+        return 1;
+    } else {
+        emunand_header = 0;
+        emunand_offset = 0;
+        return 0;
+    }
+}
+
+static inline int ReadNandSectors(u32 sector_no, u32 numsectors, u8 *out)
+{
+    if (emunand_header) {
+        if (sector_no == 0) {
+            int errorcode = sdmmc_sdcard_readsectors(emunand_header, 1, out);
+            if (errorcode) return errorcode;
+            sector_no = 1;
+            numsectors--;
+            out += 0x200;
+        }
+        return sdmmc_sdcard_readsectors(sector_no + emunand_offset, numsectors, out);
+    } else return sdmmc_nand_readsectors(sector_no, numsectors, out);
+}
+
+static inline int WriteNandSectors(u32 sector_no, u32 numsectors, u8 *in)
+{
+    if (emunand_header) {
+        if (sector_no == 0) {
+            int errorcode = sdmmc_sdcard_writesectors(emunand_header, 1, in);
+            if (errorcode) return errorcode;
+            sector_no = 1;
+            numsectors--;
+            in += 0x200;
+        }
+        return sdmmc_sdcard_writesectors(sector_no + emunand_offset, numsectors, in);
+    } else return sdmmc_nand_writesectors(sector_no, numsectors, in);
+}
+
 u32 CryptBuffer(CryptBufferInfo *info)
 {
     u8 ctr[16] __attribute__((aligned(32)));
@@ -89,7 +153,7 @@ u32 DumpTicket() {
     }
     Debug("Found at %08X, size %uMB", offset, size / (1024 * 1024));
     
-    if (DecryptNandToFile("ticket.db", offset, size, ctrnand_info) != 0)
+    if (DecryptNandToFile((emunand_header) ? "/ticket_emu.db" : "/ticket.db", offset, size, ctrnand_info) != 0)
         return 1;
     
     return 0;
@@ -189,7 +253,7 @@ u32 DecryptTitlekeysNand(void)
     Debug("Decrypted %u unique Title Keys", nKeys);
     
     if(nKeys > 0) {
-        if (!DebugFileCreate("/decTitleKeys.bin", true))
+        if (!DebugFileCreate((emunand_header) ? "/decTitleKeys_emu.bin" : "/decTitleKeys.bin", true))
             return 1;
         if (!DebugFileWrite(info, 0x10 + nKeys * 0x20, 0)) {
             FileClose();
@@ -527,7 +591,7 @@ u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 
     u32 n_sectors = (size + NAND_SECTOR_SIZE - 1) / NAND_SECTOR_SIZE;
     u32 start_sector = offset / NAND_SECTOR_SIZE;
-    sdmmc_nand_readsectors(start_sector, n_sectors, buffer);
+    ReadNandSectors(start_sector, n_sectors, buffer);
     CryptBuffer(&info);
 
     return 0;
@@ -645,7 +709,7 @@ u32 DumpNand()
     u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
         ShowProgress(i, n_sectors);
-        sdmmc_nand_readsectors(i, SECTORS_PER_READ, buffer);
+        ReadNandSectors(i, SECTORS_PER_READ, buffer);
         if(!DebugFileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE)) {
             result = 1;
             break;
@@ -706,7 +770,7 @@ u32 EncryptMemToNand(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
     u32 n_sectors = (size + NAND_SECTOR_SIZE - 1) / NAND_SECTOR_SIZE;
     u32 start_sector = offset / NAND_SECTOR_SIZE;
     CryptBuffer(&info);
-    sdmmc_nand_writesectors(start_sector, n_sectors, buffer);
+    WriteNandSectors(start_sector, n_sectors, buffer);
 
     return 0;
 }
@@ -764,7 +828,7 @@ u32 RestoreNand()
             result = 1;
             break;
         }
-        sdmmc_nand_writesectors(i, SECTORS_PER_READ, buffer);
+        WriteNandSectors(i, SECTORS_PER_READ, buffer);
     }
 
     ShowProgress(0, 0);

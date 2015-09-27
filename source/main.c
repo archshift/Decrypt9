@@ -16,41 +16,50 @@ MenuInfo menu[] =
     {
         "XORpad Options",
         {
-            { "NCCH Padgen", &NcchPadgen, 0 },
-            { "SD Padgen", &SdPadgen, 0 },
-            { "CTRNAND Padgen", &CtrNandPadgen, 0 },
-            { "TWLNAND Padgen", &TwlNandPadgen, 0 }
+            { "NCCH Padgen", &NcchPadgen, 0, 0 },
+            { "SD Padgen", &SdPadgen, 0, 0 },
+            { "CTRNAND Padgen", &CtrNandPadgen, 0, 0 },
+            { "TWLNAND Padgen", &TwlNandPadgen, 0, 0 }
         }
     },
     {
         "NAND Options 1",
         {
-            { "NAND Backup", &DumpNand, 0 },
-            { "All Partitions Dump", &DecryptAllNandPartitions, 0 },
-            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, 0 },
-            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, 0 }
+            { "NAND Backup", &DumpNand, 0, 0 },
+            { "All Partitions Dump", &DecryptAllNandPartitions, 0, 0 },
+            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, 0, 0 },
+            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, 0, 0 }
         }
     },
     {
         "NAND Options 2",
         {
-            { "NAND Restore", &RestoreNand, 1 },
-            { "All Partitions Inject", &InjectAllNandPartitions, 1 },
-            { "TWLNAND Partition Inject", &InjectTwlNandPartition, 1 },
-            { "CTRNAND Partition Inject", &InjectCtrNandPartition, 1 }
+            { "NAND Restore", &RestoreNand, 1, 0 },
+            { "All Partitions Inject", &InjectAllNandPartitions, 1, 0 },
+            { "TWLNAND Partition Inject", &InjectTwlNandPartition, 1, 0 },
+            { "CTRNAND Partition Inject", &InjectCtrNandPartition, 1, 0 }
         }
     },
     {
         "Titlekey Options",
         {
-            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, 0 },
-            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, 0 },
-            { "Ticket Dump", &DumpTicket, 0 },
-            { NULL, NULL }
+            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, 0, 0 },
+            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, 0, 0 },
+            { "Ticket Dump", &DumpTicket, 0, 0 },
+            { NULL, NULL, 0, 0 }
         }
     },
+    {
+        "EmuNAND Options",
+        {
+            { "Titlekey Decrypt", &DecryptTitlekeysNand, 0, 1 },
+            { "Ticket Dump", &DumpTicket, 0, 1 },
+            { NULL, NULL, 0, 0 },
+            { NULL, NULL, 0, 0 }
+        }
+    }
 };
-        
+
 
 void Reboot()
 {

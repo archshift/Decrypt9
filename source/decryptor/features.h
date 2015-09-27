@@ -1,5 +1,7 @@
 #pragma once
 
+u32 SetNand(u32 use_emunand);
+
 u32 NcchPadgen(void);
 u32 SdPadgen(void);
 u32 CtrNandPadgen(void);

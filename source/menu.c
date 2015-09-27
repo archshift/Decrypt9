@@ -2,6 +2,7 @@
 #include "draw.h"
 #include "hid.h"
 #include "fs.h"
+#include "decryptor/features.h"
 
 
 void ProcessMenu(MenuInfo* info, u32 nMenus) {
@@ -67,7 +68,11 @@ void ProcessMenu(MenuInfo* info, u32 nMenus) {
                     }
                 }
                 DebugClear();
-                Debug("%s: %s!", name, (*function)() == 0 ? "succeeded" : "failed");
+                if (SetNand(currMenu->entries[i].emunand) != 0) {
+                    Debug("%s: failed!", name);
+                } else {
+                    Debug("%s: %s!", name, (*function)() == 0 ? "succeeded" : "failed");
+                }
                 Debug("");
                 Debug("Press SELECT to return, START to reboot.");
                 while(!(pad_state = InputWait() & (BUTTON_SELECT | BUTTON_START)));
