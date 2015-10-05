@@ -44,7 +44,7 @@ static u32 emunand_header = 0;
 static u32 emunand_offset = 0;
 
 
-u32 SetNand(u32 use_emunand)
+u32 SetNand(bool use_emunand)
 {
     u8* buffer = BUFFER_ADDRESS;
     
@@ -1045,11 +1045,11 @@ u32 DecryptNcsdNcchBatch()
             for (p = 0; p < 8; p++) {
                 u32 offset = *((u32*) (buffer + 0x120 + (p*0x8))) * 0x200;
                 u32 size = *((u32*) (buffer + 0x124 + (p*0x8))) * 0x200;
-                if (size > 0) {
-                    Debug("Partition %i (%s)", p, ncsd_partition_name[p]);
-                    if (DecryptNcch(path, offset) != 0)
-                        break;
-                }
+                if (size == 0) 
+                    continue;
+                Debug("Partition %i (%s)", p, ncsd_partition_name[p]);
+                if (DecryptNcch(path, offset) != 0)
+                    break;
             }
             if ( p == 8 ) {
                 Debug("Success!");
