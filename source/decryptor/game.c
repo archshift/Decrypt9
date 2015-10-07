@@ -9,6 +9,7 @@
 #include "decryptor/sha256.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
+#include "decryptor/nandfat.h"
 #include "decryptor/game.h"
 
 #define DECRYPT_DIR "D9decrypt"
@@ -220,7 +221,7 @@ u32 SdPadgen()
 
 u32 UpdateSeedDb()
 {
-    PartitionInfo* ctrnand_info = GetNandPartition(P_CTRNAND);
+    PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);
     u8* buffer = BUFFER_ADDRESS;
     SeedInfo *seedinfo = (SeedInfo*) 0x20400000;
     

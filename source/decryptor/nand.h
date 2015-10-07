@@ -22,10 +22,8 @@ typedef struct {
 } __attribute__((packed)) PartitionInfo;
 
 bool IsEmuNand();
-PartitionInfo* GetNandPartition(u32 partition_id);
-
+PartitionInfo* GetPartitionInfo(u32 partition_id);
 u32 GetNandCtr(u8* ctr, u32 offset);
-u32 SeekFileInNand(u32* offset, u32* size, const char* path, PartitionInfo* partition);
 
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition);
 u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo* partition);

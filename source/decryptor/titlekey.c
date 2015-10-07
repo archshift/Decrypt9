@@ -8,6 +8,7 @@
 #include "decryptor/crypto.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
+#include "decryptor/nandfat.h"
 #include "decryptor/titlekey.h"
 
 // From https://github.com/profi200/Project_CTR/blob/master/makerom/pki/prod.h#L19
@@ -76,7 +77,7 @@ u32 DecryptTitlekeysFile(void)
 
 u32 DecryptTitlekeysNand(void)
 {
-    PartitionInfo* ctrnand_info = GetNandPartition(P_CTRNAND);;
+    PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);;
     u8* buffer = BUFFER_ADDRESS;
     EncKeysInfo *info = (EncKeysInfo*) 0x20316000;
     
