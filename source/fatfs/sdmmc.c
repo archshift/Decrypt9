@@ -73,10 +73,14 @@ void __attribute__((noinline)) sdmmc_send_command(struct mmcdevice *ctx, u32 cmd
 
     u32 size = ctx->size;
     u16 *dataPtr = (u16*)ctx->data;
+#ifdef DATA32_SUPPORT
     u32 *dataPtr32 = (u32*)ctx->data;
+#endif
 
     bool useBuf = ( NULL != dataPtr );
+#ifdef DATA32_SUPPORT
     bool useBuf32 = (useBuf && (0 == (3 & ((u32)dataPtr))));
+#endif
 
     u16 status0 = 0;
     while(true) {
@@ -454,6 +458,6 @@ int SD_Init()
 void sdmmc_sdcard_init()
 {
     InitSD();
-    u32 nand_res = Nand_Init();
-    u32 sd_res = SD_Init();
+    Nand_Init();
+    SD_Init();
 }

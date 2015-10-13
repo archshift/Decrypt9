@@ -5,6 +5,7 @@
 
 static FATFS fs;
 static FIL file;
+static DIR dir;
 
 bool InitFS()
 {
@@ -105,6 +106,63 @@ size_t FileGetSize()
 void FileClose()
 {
     f_close(&file);
+}
+
+bool DirMake(const char* path)
+{
+    FRESULT res = f_mkdir(path);
+    bool ret = (res == FR_OK) || (res == FR_EXIST);
+    return ret;
+}
+
+bool DebugDirMake(const char* path)
+{
+    Debug("Creating dir %s ...", path);
+    if (!DirMake(path)) {
+        Debug("Could not create %s!", path);
+        return false;
+    }
+    
+    return true;
+}
+
+bool DirOpen(const char* path)
+{
+    bool ret = (f_opendir(&dir, path) == FR_OK);
+    return ret;
+}
+
+bool DebugDirOpen(const char* path) {
+    Debug("Opening dir %s ...", path);
+    if (!DirOpen(path)) {
+        Debug("Could not open %s!", path);
+        return false;
+    }
+    
+    return true;
+}
+
+bool DirRead(char* fname, int fsize)
+{
+    FILINFO fno;
+    fno.lfname = fname;
+    fno.lfsize = fsize;
+    bool ret = false;
+    while (f_readdir(&dir, &fno) == FR_OK) {
+        if (fno.fname[0] == 0) break;
+        if ((fno.fname[0] != '.') && !(fno.fattrib & AM_DIR)) {
+            if (fname[0] == 0)
+                strcpy(fname, fno.fname);
+            ret = true;
+            break;
+        }
+    }
+    return ret;
+}
+
+void DirClose()
+{
+    f_closedir(&dir);
 }
 
 static uint64_t ClustersToBytes(FATFS* fs, DWORD clusters)

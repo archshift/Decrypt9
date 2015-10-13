@@ -2,6 +2,7 @@
 #include "draw.h"
 #include "hid.h"
 #include "fs.h"
+#include "decryptor/features.h"
 
 
 void ProcessMenu(MenuInfo* info, u32 nMenus) {
@@ -37,8 +38,41 @@ void ProcessMenu(MenuInfo* info, u32 nMenus) {
             char* name = currMenu->entries[i].name;
             u32 (*function)(void) = currMenu->entries[i].function;
             if ((pad_state & buttonCode[i]) && (name != NULL) && (function != NULL)) {
+                if (currMenu->entries[i].dangerous) {
+                    u32 unlockSequence[] = { BUTTON_LEFT, BUTTON_RIGHT, BUTTON_DOWN, BUTTON_UP, BUTTON_A };
+                    u32 unlockLvlMax = sizeof(unlockSequence) / sizeof(u32);
+                    u32 unlockLvl = 0;
+                    DebugClear();
+                    Debug("You selected \"%s\".", name);
+                    Debug("This feature is potentially dangerous!");
+                    Debug("If you understand and wish to proceed, enter:");
+                    Debug("<Left>, <Right>, <Down>, <Up>, <A>");
+                    Debug("");
+                    Debug("(SELECT to return, START to reboot)");
+                    while (true) {
+                        ShowProgress(unlockLvl, unlockLvlMax);
+                        if (unlockLvl == unlockLvlMax)
+                            break;
+                        pad_state = InputWait();
+                        if (pad_state & unlockSequence[unlockLvl])
+                            unlockLvl++;
+                        else if (pad_state & (BUTTON_SELECT | BUTTON_START))
+                            break;
+                        else if (unlockLvl == 0 || !(pad_state & unlockSequence[unlockLvl-1]))
+                            unlockLvl = 0;
+                    }
+                    ShowProgress(0, 0);
+                    if (unlockLvl < unlockLvlMax) {
+                        drawMenu = true;
+                        break;
+                    }
+                }
                 DebugClear();
-                Debug("%s: %s!", name, (*function)() == 0 ? "succeeded" : "failed");
+                if (SetNand(currMenu->entries[i].emunand) != 0) {
+                    Debug("%s: failed!", name);
+                } else {
+                    Debug("%s: %s!", name, (*function)() == 0 ? "succeeded" : "failed");
+                }
                 Debug("");
                 Debug("Press SELECT to return, START to reboot.");
                 while(!(pad_state = InputWait() & (BUTTON_SELECT | BUTTON_START)));

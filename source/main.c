@@ -16,32 +16,50 @@ MenuInfo menu[] =
     {
         "XORpad Options",
         {
-            { "NCCH Padgen", &NcchPadgen },
-            { "SD Padgen", &SdPadgen },
-            { "CTRNAND Padgen", &CtrNandPadgen },
-            { "TWLNAND Padgen", &TwlNandPadgen }
+            { "NCCH Padgen", &NcchPadgen, false, false },
+            { "SD Padgen", &SdPadgen, false, false },
+            { "CTRNAND Padgen", &CtrNandPadgen, false, false },
+            { "TWLNAND Padgen", &TwlNandPadgen, false, false }
         }
     },
     {
-        "NAND Options",
+        "NAND Options 1",
         {
-            { "NAND Backup", &DumpNand },
-            { "TWL / AGB Partitions Dump", &DecryptTwlAgbPartitions },
-            { "CTR Partitions Dump", &DecryptCtrPartitions },
-            { NULL, NULL }
+            { "NAND Backup", &DumpNand, false, false },
+            { "All Partitions Dump", &DecryptAllNandPartitions, false, false },
+            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, false, false },
+            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, false, false }
         }
     },
     {
-        "Titlekey Options",
+        "NAND Options 2",
         {
-            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile },
-            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand },
-            { "Ticket Dump", &DumpTicket },
-            { NULL, NULL }
+            { "NAND Restore", &RestoreNand, true, false },
+            { "All Partitions Inject", &InjectAllNandPartitions, true, false },
+            { "TWLNAND Partition Inject", &InjectTwlNandPartition, true, false },
+            { "CTRNAND Partition Inject", &InjectCtrNandPartition, true, false }
         }
     },
+    {
+        "Titles Options",
+        {
+            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, false, false },
+            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, false, false },
+            { "Ticket Dump", &DumpTicket, false, false },
+            { "NCCH Decryptor", &DecryptNcsdNcchBatch, false, false }
+        }
+    },
+    {
+        "EmuNAND Options",
+        {
+            { "Titlekey Decrypt", &DecryptTitlekeysNand, false, true },
+            { "Ticket Dump", &DumpTicket, false, true },
+            { "Update SeedDB", &UpdateSeedDb, false, true },
+            { "Seedsave Dump", &DumpSeedsave, false, true }
+        }
+    }
 };
-        
+
 
 void Reboot()
 {

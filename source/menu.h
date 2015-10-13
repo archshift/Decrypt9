@@ -5,6 +5,8 @@
 typedef struct {
     char* name;
     u32 (*function)(void);
+    bool dangerous;
+    bool emunand;
 } MenuEntry;
 
 typedef struct {
