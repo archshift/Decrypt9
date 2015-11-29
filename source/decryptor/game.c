@@ -171,7 +171,7 @@ u32 SdPadgen(u32 param)
             Debug("movable.sed is too corrupt!");
             return 1;
         }
-        setup_aeskey(0x34, AES_BIG_INPUT|AES_NORMAL_INPUT, &movable_seed[0x110]);
+        setup_aeskeyY(0x34, &movable_seed[0x110]);
         use_aeskey(0x34);
     }
 

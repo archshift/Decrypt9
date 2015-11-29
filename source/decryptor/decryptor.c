@@ -16,15 +16,20 @@ u32 CryptBuffer(CryptBufferInfo *info)
     if (info->setKeyY) {
         u8 keyY[16] __attribute__((aligned(32)));
         memcpy(keyY, info->keyY, 16);
-        setup_aeskey(info->keyslot, AES_BIG_INPUT | AES_NORMAL_INPUT, keyY);
+        setup_aeskeyY(info->keyslot, keyY);
         info->setKeyY = 0;
     }
     use_aeskey(info->keyslot);
 
     for (u32 i = 0; i < size; i += 0x10, buffer += 0x10) {
         set_ctr(ctr);
-        aes_decrypt((void*) buffer, (void*) buffer, ctr, 1, mode);
-        add_ctr(ctr, 0x1);
+        if ((mode & (0x7 << 27)) == AES_CBC_DECRYPT_MODE)
+            memcpy(ctr, buffer, 0x10);
+        aes_decrypt((void*) buffer, (void*) buffer, 1, mode);
+        if ((mode & (0x7 << 27)) == AES_CBC_ENCRYPT_MODE)
+            memcpy(ctr, buffer, 0x10);
+        else if ((mode & (0x7 << 27)) == AES_CTR_MODE)
+            add_ctr(ctr, 0x1);
     }
 
     memcpy(info->ctr, ctr, 16);
