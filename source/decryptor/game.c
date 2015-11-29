@@ -2,7 +2,6 @@
 #include "draw.h"
 #include "platform.h"
 #include "decryptor/crypto.h"
-#include "decryptor/sha256.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
 #include "decryptor/nandfat.h"
@@ -116,10 +115,9 @@ u32 NcchPadgen(u32 param)
                 return 1;
             }
             u8 sha256sum[32];
-            sha256_context shactx;
-            sha256_starts(&shactx);
-            sha256_update(&shactx, keydata, 32);
-            sha256_finish(&shactx, sha256sum);
+            sha_init(SHA256_MODE);
+            sha_update(keydata, 32);
+            sha_get(sha256sum);
             memcpy(padInfo.keyY, sha256sum, 16);
         }
         else
@@ -341,20 +339,19 @@ u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash)
     // uses the standard buffer, so be careful
     u8* buffer = BUFFER_ADDRESS; 
     u8 digest[32];
-    sha256_context shactx;
     
     if (!FileOpen(filename))
         return 1;
-    sha256_starts(&shactx);
+    sha_init(SHA256_MODE);
     for (u32 i = 0; i < size; i += BUFFER_MAX_SIZE) {
         u32 read_bytes = min(BUFFER_MAX_SIZE, (size - i));
         if(!FileRead(buffer, read_bytes, offset + i)) {
             FileClose();
             return 1;
         }
-        sha256_update(&shactx, buffer, read_bytes);
+        sha_update(buffer, read_bytes);
     }
-    sha256_finish(&shactx, digest);
+    sha_get(hash);
     FileClose();
     
     return (memcmp(hash, digest, 32) == 0) ? 0 : 1; 
@@ -429,10 +426,9 @@ u32 DecryptNcch(const char* filename, u32 offset)
                     memcpy(keydata, ncch->signature, 16);
                     memcpy(keydata + 16, entry->external_seed, 16);
                     u8 sha256sum[32];
-                    sha256_context shactx;
-                    sha256_starts(&shactx);
-                    sha256_update(&shactx, keydata, 32);
-                    sha256_finish(&shactx, sha256sum);
+                    sha_init(SHA256_MODE);
+                    sha_update(keydata, 32);
+                    sha_get(sha256sum);
                     memcpy(seedKeyY, sha256sum, 16);
                     found = 1;
                 }
