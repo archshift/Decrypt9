@@ -12,8 +12,6 @@
 #include "decryptor/nandfat.h"
 #include "decryptor/game.h"
 
-#define DECRYPT_DIR "D9decrypt"
-
 
 u32 NcchPadgen()
 {
@@ -585,18 +583,28 @@ u32 DecryptNcsdNcchBatch()
     const char* ncsd_partition_name[8] = {
         "Executable", "Manual", "DPC", "Unknown", "Unknown", "Unknown", "UpdateN3DS", "UpdateO3DS" 
     };
+    char* batch_dir = GAME_DIR;
     u8* buffer = (u8*) 0x20316000;
     u32 n_processed = 0;
     u32 n_failed = 0;
     
-    if (!DebugDirOpen(DECRYPT_DIR)) {
-        Debug("Files to decrypt go to %s/!", DECRYPT_DIR);
+    if (!DebugDirOpen(batch_dir)) {
+        #ifdef WORK_DIR
+        Debug("Trying %s/ instead...", WORK_DIR);
+        if (!DebugDirOpen(WORK_DIR)) {
+            Debug("No working directory found!");
+            return 1;
+        }
+        batch_dir = WORK_DIR;
+        #else
+        Debug("Files to process go to %s/!", batch_dir);
         return 1;
+        #endif
     }
     
     char path[256];
-    u32 path_len = strnlen(DECRYPT_DIR, 128);
-    memcpy(path, DECRYPT_DIR, path_len);
+    u32 path_len = strnlen(batch_dir, 128);
+    memcpy(path, batch_dir, path_len);
     path[path_len++] = '/';
     
     while (DirRead(path + path_len, 256 - path_len)) {

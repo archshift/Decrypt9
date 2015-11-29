@@ -25,13 +25,22 @@ void DeinitFS()
 bool FileOpen(const char* path)
 {
     unsigned flags = FA_READ | FA_WRITE | FA_OPEN_EXISTING;
+    #ifdef WORK_DIR
+    if (*path == '/' || *path == '\\') path++;
+    f_chdir(WORK_DIR);
     bool ret = (f_open(&file, path, flags) == FR_OK);
+    f_chdir("/");
+    if (!ret) ret = (f_open(&file, path, flags) == FR_OK);
+    #else
+    bool ret = (f_open(&file, path, flags) == FR_OK);
+    #endif
     f_lseek(&file, 0);
     f_sync(&file);
     return ret;
 }
 
-bool DebugFileOpen(const char* path) {
+bool DebugFileOpen(const char* path)
+{
     Debug("Opening %s ...", path);
     if (!FileOpen(path)) {
         Debug("Could not open %s!", path);
@@ -45,7 +54,14 @@ bool FileCreate(const char* path, bool truncate)
 {
     unsigned flags = FA_READ | FA_WRITE;
     flags |= truncate ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS;
+    #ifdef WORK_DIR
+    if (*path == '/' || *path == '\\') path++;
+    f_chdir(WORK_DIR);
     bool ret = (f_open(&file, path, flags) == FR_OK);
+    f_chdir("/");
+    #else
+    bool ret = (f_open(&file, path, flags) == FR_OK);
+    #endif
     f_lseek(&file, 0);
     f_sync(&file);
     return ret;
@@ -88,7 +104,8 @@ size_t FileWrite(void* buf, size_t size, size_t foffset)
     return bytes_written;
 }
 
-bool DebugFileWrite(void* buf, size_t size, size_t foffset) {
+bool DebugFileWrite(void* buf, size_t size, size_t foffset)
+{
     size_t bytesWritten = FileWrite(buf, size, foffset);
     if(bytesWritten != size) {
         Debug("ERROR, SD card may be full!");
@@ -128,12 +145,12 @@ bool DebugDirMake(const char* path)
 
 bool DirOpen(const char* path)
 {
-    bool ret = (f_opendir(&dir, path) == FR_OK);
-    return ret;
+    return (f_opendir(&dir, path) == FR_OK);
 }
 
-bool DebugDirOpen(const char* path) {
-    Debug("Opening dir %s ...", path);
+bool DebugDirOpen(const char* path)
+{
+    Debug("Opening %s ...", path);
     if (!DirOpen(path)) {
         Debug("Could not open %s!", path);
         return false;

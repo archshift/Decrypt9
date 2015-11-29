@@ -26,6 +26,10 @@
        __typeof__ (b) _b = (b); \
        _a < _b ? _a : _b; })
 
+// work files / directories
+#define GAME_DIR "/D9Game"
+#define WORK_DIR "/Decrypt9"
+
 inline char* strupper(const char* str) {
     char* buffer = (char*)malloc(strlen(str) + 1);
     for (int i = 0; i < strlen(str); ++i)
