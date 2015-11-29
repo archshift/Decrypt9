@@ -19,3 +19,7 @@ typedef struct {
 
 
 u32 DecryptTitlekey(TitleKeyEntry* entry);
+
+// --> FEATURE FUNCTIONS <--
+u32 DecryptTitlekeysFile(u32 param);
+u32 DecryptTitlekeysNand(u32 param);

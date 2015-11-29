@@ -1,14 +1,13 @@
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
-
 #include "common.h"
 #include "draw.h"
 #include "fs.h"
 #include "hid.h"
 #include "menu.h"
 #include "i2c.h"
-#include "decryptor/features.h"
+#include "decryptor/game.h"
+#include "decryptor/nand.h"
+#include "decryptor/nandfat.h"
+#include "decryptor/titlekey.h"
 
 
 MenuInfo menu[] =

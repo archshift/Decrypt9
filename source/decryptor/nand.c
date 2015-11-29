@@ -1,10 +1,6 @@
-#include <string.h>
-#include <stdio.h>
-
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/features.h"
 #include "decryptor/crypto.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
@@ -115,7 +111,7 @@ u32 CtrNandPadgen(u32 param)
     Debug("Filename: nand.fat16.xorpad");
 
     PadInfo padInfo = {.keyslot = keyslot, .setKeyY = 0, .size_mb = nand_size, .filename = "nand.fat16.xorpad", .mode = AES_CNT_CTRNAND_MODE};
-    if(GetNandCtr(padInfo.CTR, 0xB930000) != 0)
+    if(GetNandCtr(padInfo.ctr, 0xB930000) != 0)
         return 1;
 
     return CreatePad(&padInfo);
@@ -133,7 +129,7 @@ u32 TwlNandPadgen(u32 param)
         .size_mb = size_mb,
         .filename = "twlnand.fat16.xorpad",
         .mode = AES_CNT_TWLNAND_MODE};
-    if(GetNandCtr(padInfo.CTR, partitions[0].offset) != 0)
+    if(GetNandCtr(padInfo.ctr, partitions[0].offset) != 0)
         return 1;
 
     return CreatePad(&padInfo);
@@ -195,7 +191,7 @@ u32 GetNandCtr(u8* ctr, u32 offset)
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 {
     CryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer, .mode = partition->mode};
-    if(GetNandCtr(info.CTR, offset) != 0)
+    if(GetNandCtr(info.ctr, offset) != 0)
         return 1;
 
     u32 n_sectors = (size + NAND_SECTOR_SIZE - 1) / NAND_SECTOR_SIZE;
@@ -240,7 +236,7 @@ u32 DumpNand(u32 param)
 
     Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
 
-    if (!DebugFileCreate("/NAND.bin", true))
+    if (!DebugFileCreate("NAND.bin", true))
         return 1;
 
     u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
@@ -270,7 +266,7 @@ u32 DecryptNandPartition(PartitionInfo* p) {
         Debug("Decryption error, please contact us");
         return 1;
     }
-    snprintf(filename, 32, "/%s.bin", p->name);
+    snprintf(filename, 32, "%s.bin", p->name);
     
     return DecryptNandToFile(filename, p->offset, p->size, p);
 }
@@ -295,7 +291,7 @@ u32 DecryptCtrNandPartition(u32 param) {
 u32 EncryptMemToNand(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 {
     CryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer, .mode = partition->mode};
-    if(GetNandCtr(info.CTR, offset) != 0)
+    if(GetNandCtr(info.ctr, offset) != 0)
         return 1;
 
     u32 n_sectors = (size + NAND_SECTOR_SIZE - 1) / NAND_SECTOR_SIZE;
@@ -342,7 +338,7 @@ u32 RestoreNand(u32 param)
     u32 nand_size = getMMCDevice(0)->total_size * 0x200;
     u32 result = 0;
 
-    if (!DebugFileOpen("/NAND.bin"))
+    if (!DebugFileOpen("NAND.bin"))
         return 1;
     if (nand_size != FileGetSize()) {
         FileClose();
@@ -373,7 +369,7 @@ u32 InjectNandPartition(PartitionInfo* p) {
     u8 magic[NAND_SECTOR_SIZE];
     
     // File check
-    snprintf(filename, 32, "/%s.bin", p->name);
+    snprintf(filename, 32, "%s.bin", p->name);
     if (FileOpen(filename)) {
         FileClose();
     } else {

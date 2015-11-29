@@ -1,10 +1,6 @@
-#include <string.h>
-#include <stdio.h>
-
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/features.h"
 #include "decryptor/crypto.h"
 #include "decryptor/sha256.h"
 #include "decryptor/decryptor.h"
@@ -20,7 +16,7 @@ u32 NcchPadgen(u32 param)
     NcchInfo *info = (NcchInfo*)0x20316000;
     SeedInfo *seedinfo = (SeedInfo*)0x20400000;
 
-    if (DebugFileOpen("/slot0x25KeyX.bin")) {
+    if (DebugFileOpen("slot0x25KeyX.bin")) {
         u8 slot0x25KeyX[16] = {0};
         if (!DebugFileRead(&slot0x25KeyX, 16, 0)) {
             FileClose();
@@ -32,7 +28,7 @@ u32 NcchPadgen(u32 param)
         Debug("7.x game decryption will fail on less than 7.x!");
     }
 
-    if (DebugFileOpen("/seeddb.bin")) {
+    if (DebugFileOpen("seeddb.bin")) {
         if (!DebugFileRead(seedinfo, 16, 0)) {
             FileClose();
             return 1;
@@ -51,7 +47,7 @@ u32 NcchPadgen(u32 param)
         Debug("9.x seed crypto game decryption will fail!");
     }
 
-    if (!DebugFileOpen("/ncchinfo.bin"))
+    if (!DebugFileOpen("ncchinfo.bin"))
         return 1;
     if (!DebugFileRead(info, 16, 0)) {
         FileClose();
@@ -101,7 +97,7 @@ u32 NcchPadgen(u32 param)
         Debug("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
         PadInfo padInfo = {.setKeyY = 1, .size_mb = info->entries[i].size_mb, .mode = AES_CNT_CTRNAND_MODE};
-        memcpy(padInfo.CTR, info->entries[i].CTR, 16);
+        memcpy(padInfo.ctr, info->entries[i].ctr, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 112);
         if (info->entries[i].usesSeedCrypto) {
             u8 keydata[32];
@@ -165,7 +161,7 @@ u32 SdPadgen(u32 param)
     u8 movable_seed[0x120] = {0};
 
     // Load console 0x34 keyY from movable.sed if present on SD card
-    if (DebugFileOpen("/movable.sed")) {
+    if (DebugFileOpen("movable.sed")) {
         if (!DebugFileRead(&movable_seed, 0x120, 0)) {
             FileClose();
             return 1;
@@ -179,7 +175,7 @@ u32 SdPadgen(u32 param)
         use_aeskey(0x34);
     }
 
-    if (!DebugFileOpen("/SDinfo.bin"))
+    if (!DebugFileOpen("SDinfo.bin"))
         return 1;
     if (!DebugFileRead(info, 4, 0)) {
         FileClose();
@@ -204,7 +200,7 @@ u32 SdPadgen(u32 param)
         Debug ("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
 
         PadInfo padInfo = {.keyslot = 0x34, .setKeyY = 0, .size_mb = info->entries[i].size_mb, .mode = AES_CNT_CTRNAND_MODE};
-        memcpy(padInfo.CTR, info->entries[i].CTR, 16);
+        memcpy(padInfo.ctr, info->entries[i].ctr, 16);
         memcpy(padInfo.filename, info->entries[i].filename, 180);
 
         result = CreatePad(&padInfo);
@@ -241,7 +237,7 @@ u32 UpdateSeedDb(u32 param)
     DecryptNandToMem(buffer, offset, size, ctrnand_info);
     
     // load / create seeddb.bin
-    if (DebugFileOpen("/seeddb.bin")) {
+    if (DebugFileOpen("seeddb.bin")) {
         if (!DebugFileRead(seedinfo, 16, 0)) {
             FileClose();
             return 1;
@@ -256,7 +252,7 @@ u32 UpdateSeedDb(u32 param)
             return 1;
         }
     } else {
-        if (!DebugFileCreate("/seeddb.bin", true))
+        if (!DebugFileCreate("seeddb.bin", true))
             return 1;
         memset(seedinfo, 0x00, 16);
     }
@@ -453,14 +449,14 @@ u32 DecryptNcch(const char* filename, u32 offset)
     }
     
     // basic setup of CryptBufferInfo structs
-    memset(info0.CTR, 0x00, 16);
+    memset(info0.ctr, 0x00, 16);
     if (ncch->version == 1) {
-        memcpy(info0.CTR, &(ncch->partitionId), 8);
+        memcpy(info0.ctr, &(ncch->partitionId), 8);
     } else {
         for (u32 i = 0; i < 8; i++)
-            info0.CTR[i] = ((u8*) &(ncch->partitionId))[7-i];
+            info0.ctr[i] = ((u8*) &(ncch->partitionId))[7-i];
     }
-    memcpy(info1.CTR, info0.CTR, 8);
+    memcpy(info1.ctr, info0.ctr, 8);
     memcpy(info0.keyY, ncch->signature, 16);
     memcpy(info1.keyY, (usesSeedCrypto) ? seedKeyY : ncch->signature, 16);
     info1.keyslot = (usesSec3Crypto) ? 0x18 : ((uses7xCrypto) ? 0x25 : 0x2C);
@@ -473,11 +469,11 @@ u32 DecryptNcch(const char* filename, u32 offset)
     // process ExHeader
     if (ncch->size_exthdr > 0) {
         // Debug("Decrypting ExtHeader (%ub)...", 0x800);
-        memset(info0.CTR + 12, 0x00, 4);
+        memset(info0.ctr + 12, 0x00, 4);
         if (ncch->version == 1)
-            add_ctr(info0.CTR, 0x200); // exHeader offset
+            add_ctr(info0.ctr, 0x200); // exHeader offset
         else
-            info0.CTR[8] = 1;
+            info0.ctr[8] = 1;
         result |= DecryptSdToSd(filename, offset + 0x200, 0x800, &info0);
     }
     
@@ -486,11 +482,11 @@ u32 DecryptNcch(const char* filename, u32 offset)
         u32 offset_byte = ncch->offset_exefs * 0x200;
         u32 size_byte = ncch->size_exefs * 0x200;
         // Debug("Decrypting ExeFS (%ukB)...", size_byte / 1024);
-        memset(info0.CTR + 12, 0x00, 4);
+        memset(info0.ctr + 12, 0x00, 4);
         if (ncch->version == 1)
-            add_ctr(info0.CTR, offset_byte);
+            add_ctr(info0.ctr, offset_byte);
         else
-            info0.CTR[8] = 2;
+            info0.ctr[8] = 2;
         if (uses7xCrypto || usesSeedCrypto) {
             u32 offset_code = 0;
             u32 size_code = 0;
@@ -513,8 +509,8 @@ u32 DecryptNcch(const char* filename, u32 offset)
             // special ExeFS decryption routine (only .code has new encryption)
             if (size_code > 0) {
                 result |= DecryptSdToSd(filename, offset + offset_byte + 0x200, offset_code - 0x200, &info0);
-                memcpy(info1.CTR, info0.CTR, 16); // this depends on the exeFS file offsets being aligned (which they are)
-                add_ctr(info0.CTR, size_code / 0x10);
+                memcpy(info1.ctr, info0.ctr, 16); // this depends on the exeFS file offsets being aligned (which they are)
+                add_ctr(info0.ctr, size_code / 0x10);
                 info0.setKeyY = info1.setKeyY = 1;
                 result |= DecryptSdToSd(filename, offset + offset_byte + offset_code, size_code, &info1);
                 result |= DecryptSdToSd(filename,
@@ -533,11 +529,11 @@ u32 DecryptNcch(const char* filename, u32 offset)
         u32 offset_byte = ncch->offset_romfs * 0x200;
         u32 size_byte = ncch->size_romfs * 0x200;
         // Debug("Decrypting RomFS (%uMB)...", size_byte / (1024 * 1024));
-        memset(info1.CTR + 12, 0x00, 4);
+        memset(info1.ctr + 12, 0x00, 4);
         if (ncch->version == 1)
-            add_ctr(info1.CTR, offset_byte);
+            add_ctr(info1.ctr, offset_byte);
         else
-            info1.CTR[8] = 3;
+            info1.ctr[8] = 3;
         info1.setKeyY = 1;
         result |= DecryptSdToSd(filename, offset + offset_byte, size_byte, &info1);
     }

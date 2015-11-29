@@ -1,9 +1,5 @@
-#include <string.h>
-#include <stdio.h>
-
 #include "fs.h"
 #include "draw.h"
-#include "decryptor/features.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
 #include "decryptor/nandfat.h"
@@ -78,7 +74,7 @@ u32 DumpTicket(u32 param)
     }
     Debug("Found at %08X, size %uMB", offset, size / (1024 * 1024));
     
-    if (DecryptNandToFile((IsEmuNand()) ? "/ticket_emu.db" : "/ticket.db", offset, size, ctrnand_info) != 0)
+    if (DecryptNandToFile((IsEmuNand()) ? "ticket_emu.db" : "ticket.db", offset, size, ctrnand_info) != 0)
         return 1;
     
     return 0;
@@ -97,7 +93,7 @@ u32 DumpSeedsave(u32 param)
     }
     Debug("Found at %08X, size %ukB", offset, size / 1024);
     
-    if (DecryptNandToFile("/seedsave.bin", offset, size, ctrnand_info) != 0)
+    if (DecryptNandToFile("seedsave.bin", offset, size, ctrnand_info) != 0)
         return 1;
     
     return 0;

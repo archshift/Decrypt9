@@ -32,3 +32,20 @@ u32 DecryptNandPartition(PartitionInfo* p);
 u32 EncryptMemToNand(u8* buffer, u32 offset, u32 size, PartitionInfo* partition);
 u32 EncryptFileToNand(const char* filename, u32 offset, u32 size, PartitionInfo* partition);
 u32 InjectNandPartition(PartitionInfo* p);
+
+// --> FEATURE FUNCTIONS <--
+u32 SetNand(bool use_emunand);
+
+u32 CtrNandPadgen(u32 param);
+u32 TwlNandPadgen(u32 param);
+
+u32 DumpNand(u32 param);
+u32 RestoreNand(u32 param);
+
+u32 DecryptAllNandPartitions(u32 param);
+u32 DecryptTwlNandPartition(u32 param);
+u32 DecryptCtrNandPartition(u32 param);
+
+u32 InjectAllNandPartitions(u32 param);
+u32 InjectTwlNandPartition(u32 param);
+u32 InjectCtrNandPartition(u32 param);
