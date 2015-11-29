@@ -13,7 +13,7 @@
 #include "decryptor/game.h"
 
 
-u32 NcchPadgen()
+u32 NcchPadgen(u32 param)
 {
     u32 result;
 
@@ -156,7 +156,7 @@ u32 NcchPadgen()
     return 0;
 }
 
-u32 SdPadgen()
+u32 SdPadgen(u32 param)
 {
     u32 result;
 
@@ -217,7 +217,7 @@ u32 SdPadgen()
     return 0;
 }
 
-u32 UpdateSeedDb()
+u32 UpdateSeedDb(u32 param)
 {
     PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);
     u8* buffer = BUFFER_ADDRESS;
@@ -578,7 +578,7 @@ u32 DecryptNcch(const char* filename, u32 offset)
     return result;
 }
 
-u32 DecryptNcsdNcchBatch()
+u32 DecryptNcsdNcchBatch(u32 param)
 {
     const char* ncsd_partition_name[8] = {
         "Executable", "Manual", "DPC", "Unknown", "Unknown", "Unknown", "UpdateN3DS", "UpdateO3DS" 

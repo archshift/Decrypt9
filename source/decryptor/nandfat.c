@@ -65,7 +65,8 @@ u32 SeekFileInNand(u32* offset, u32* size, const char* path, PartitionInfo* part
     return (found) ? 0 : 1;
 }
 
-u32 DumpTicket() {
+u32 DumpTicket(u32 param)
+{
     PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);
     u32 offset;
     u32 size;
@@ -83,7 +84,7 @@ u32 DumpTicket() {
     return 0;
 }
 
-u32 DumpSeedsave()
+u32 DumpSeedsave(u32 param)
 {
     PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);
     u32 offset;

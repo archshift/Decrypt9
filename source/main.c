@@ -14,48 +14,48 @@
 MenuInfo menu[] =
 {
     {
-        "XORpad Options",
+        "XORpad Options", 4,
         {
-            { "NCCH Padgen", &NcchPadgen, false, false },
-            { "SD Padgen", &SdPadgen, false, false },
-            { "CTRNAND Padgen", &CtrNandPadgen, false, false },
-            { "TWLNAND Padgen", &TwlNandPadgen, false, false }
+            { "NCCH Padgen", &NcchPadgen, false, false, 0 },
+            { "SD Padgen", &SdPadgen, false, false, 0 },
+            { "CTRNAND Padgen", &CtrNandPadgen, false, false, 0 },
+            { "TWLNAND Padgen", &TwlNandPadgen, false, false, 0 }
         }
     },
     {
-        "NAND Options 1",
+        "NAND Options 1", 4,
         {
-            { "NAND Backup", &DumpNand, false, false },
-            { "All Partitions Dump", &DecryptAllNandPartitions, false, false },
-            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, false, false },
-            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, false, false }
+            { "NAND Backup", &DumpNand, false, false, 0 },
+            { "All Partitions Dump", &DecryptAllNandPartitions, false, false, 0 },
+            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, false, false, 0 },
+            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, false, false, 0 }
         }
     },
     {
-        "NAND Options 2",
+        "NAND Options 2", 4,
         {
-            { "NAND Restore", &RestoreNand, true, false },
-            { "All Partitions Inject", &InjectAllNandPartitions, true, false },
-            { "TWLNAND Partition Inject", &InjectTwlNandPartition, true, false },
-            { "CTRNAND Partition Inject", &InjectCtrNandPartition, true, false }
+            { "NAND Restore", &RestoreNand, true, false, 0 },
+            { "All Partitions Inject", &InjectAllNandPartitions, true, false, 0 },
+            { "TWLNAND Partition Inject", &InjectTwlNandPartition, true, false, 0 },
+            { "CTRNAND Partition Inject", &InjectCtrNandPartition, true, false, 0 }
         }
     },
     {
-        "Titles Options",
+        "Titles Options", 4,
         {
-            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, false, false },
-            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, false, false },
-            { "Ticket Dump", &DumpTicket, false, false },
-            { "NCCH Decryptor", &DecryptNcsdNcchBatch, false, false }
+            { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, false, false, 0 },
+            { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, false, false, 0 },
+            { "Ticket Dump", &DumpTicket, false, false, 0 },
+            { "NCCH Decryptor", &DecryptNcsdNcchBatch, false, false, 0 }
         }
     },
     {
-        "EmuNAND Options",
+        "EmuNAND Options", 4,
         {
-            { "Titlekey Decrypt", &DecryptTitlekeysNand, false, true },
-            { "Ticket Dump", &DumpTicket, false, true },
-            { "Update SeedDB", &UpdateSeedDb, false, true },
-            { "Seedsave Dump", &DumpSeedsave, false, true }
+            { "Titlekey Decrypt", &DecryptTitlekeysNand, false, true, 0 },
+            { "Ticket Dump", &DumpTicket, false, true, 0 },
+            { "Update SeedDB", &UpdateSeedDb, false, true, 0 },
+            { "Seedsave Dump", &DumpSeedsave, false, true, 0 }
         }
     }
 };

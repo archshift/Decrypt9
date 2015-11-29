@@ -34,7 +34,7 @@ u32 DecryptTitlekey(TitleKeyEntry* entry)
     return 0;
 }
 
-u32 DecryptTitlekeysFile(void)
+u32 DecryptTitlekeysFile(u32 param)
 {
     EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 
@@ -75,7 +75,7 @@ u32 DecryptTitlekeysFile(void)
     return 0;
 }
 
-u32 DecryptTitlekeysNand(void)
+u32 DecryptTitlekeysNand(u32 param)
 {
     PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);;
     u8* buffer = BUFFER_ADDRESS;

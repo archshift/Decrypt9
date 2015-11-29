@@ -98,7 +98,7 @@ PartitionInfo* GetPartitionInfo(u32 partition_id)
     return &(partitions[partition_id]);
 }
 
-u32 CtrNandPadgen()
+u32 CtrNandPadgen(u32 param)
 {
     u32 keyslot;
     u32 nand_size;
@@ -121,7 +121,7 @@ u32 CtrNandPadgen()
     return CreatePad(&padInfo);
 }
 
-u32 TwlNandPadgen()
+u32 TwlNandPadgen(u32 param)
 {
     u32 size_mb = (partitions[0].size + (1024 * 1024) - 1) / (1024 * 1024);
     Debug("Creating TWLNAND FAT16 xorpad. Size (MB): %u", size_mb);
@@ -232,7 +232,7 @@ u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo*
 
 
 
-u32 DumpNand()
+u32 DumpNand(u32 param)
 {
     u8* buffer = BUFFER_ADDRESS;
     u32 nand_size = getMMCDevice(0)->total_size * 0x200;
@@ -275,7 +275,7 @@ u32 DecryptNandPartition(PartitionInfo* p) {
     return DecryptNandToFile(filename, p->offset, p->size, p);
 }
 
-u32 DecryptAllNandPartitions() {
+u32 DecryptAllNandPartitions(u32 param) {
     u32 result = 0;
     
     for (u32 partition_id = 0; partition_id < 6; partition_id++)
@@ -284,11 +284,11 @@ u32 DecryptAllNandPartitions() {
     return result;
 }
 
-u32 DecryptTwlNandPartition() {
+u32 DecryptTwlNandPartition(u32 param) {
     return DecryptNandPartition(GetPartitionInfo(P_TWLN)); // TWLN
 }
     
-u32 DecryptCtrNandPartition() {
+u32 DecryptCtrNandPartition(u32 param) {
     return DecryptNandPartition(GetPartitionInfo(P_CTRNAND)); // CTRNAND O3DS / N3DS
 }
 
@@ -336,7 +336,7 @@ u32 EncryptFileToNand(const char* filename, u32 offset, u32 size, PartitionInfo*
     return result;
 }
 
-u32 RestoreNand()
+u32 RestoreNand(u32 param)
 {
     u8* buffer = BUFFER_ADDRESS;
     u32 nand_size = getMMCDevice(0)->total_size * 0x200;
@@ -407,7 +407,7 @@ u32 InjectNandPartition(PartitionInfo* p) {
     return EncryptFileToNand(filename, p->offset, p->size, p);
 }
 
-u32 InjectAllNandPartitions() {
+u32 InjectAllNandPartitions(u32 param) {
     u32 result = 1;
     
     for (u32 partition_id = 0; partition_id < 6; partition_id++)
@@ -416,10 +416,10 @@ u32 InjectAllNandPartitions() {
     return result;
 }
 
-u32 InjectTwlNandPartition() {
+u32 InjectTwlNandPartition(u32 param) {
     return InjectNandPartition(GetPartitionInfo(P_TWLN)); // TWLN
 }
 
-u32 InjectCtrNandPartition() {
+u32 InjectCtrNandPartition(u32 param) {
     return InjectNandPartition(GetPartitionInfo(P_CTRNAND)); // CTRNAND O3DS / N3DS
 }
