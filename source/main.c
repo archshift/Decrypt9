@@ -69,7 +69,7 @@ void Reboot()
 
 int main()
 {
-    DebugClear();
+    ClearScreenFull(true, true);
     InitFS();
 
     ProcessMenu(menu, sizeof(menu) / sizeof(MenuInfo));
