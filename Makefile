@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------------
-.SUFFIXES:
+.SUFFIXES: 
 #---------------------------------------------------------------------------------
 
 ifeq ($(strip $(DEVKITARM)),)
@@ -66,6 +66,7 @@ ifneq ($(BUILD),$(notdir $(CURDIR)))
 
 export OUTPUT_D	:=	$(CURDIR)/output
 export OUTPUT	:=	$(OUTPUT_D)/$(TARGET)
+export RELEASE	:=	$(CURDIR)/release
 
 export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
@@ -100,7 +101,7 @@ export INCLUDE	:=	$(foreach dir,$(INCLUDES),-I$(CURDIR)/$(dir)) \
 
 export LIBPATHS	:=	$(foreach dir,$(LIBDIRS),-L$(dir)/lib)
 
-.PHONY: common clean all gateway bootstrap cakehax brahma release
+.PHONY: common clean all gateway bootstrap cakehax cakerop brahma release
 
 #---------------------------------------------------------------------------------
 all: gateway
@@ -124,6 +125,10 @@ cakehax: submodules common
 	@make --no-print-directory -C $(BUILD) -f $(CURDIR)/Makefile EXEC_METHOD=GATEWAY
 	@make dir_out=$(OUTPUT_D) name=$(TARGET).dat -C CakeHax bigpayload
 	@dd if=$(OUTPUT).bin of=$(OUTPUT).dat bs=512 seek=160
+    
+cakerop: cakehax
+	@make DATNAME=$(TARGET).dat DISPNAME=$(TARGET) GRAPHICS=../resources/CakesROP -C CakesROP
+	@mv CakesROP/CakesROP.nds $(OUTPUT_D)/$(TARGET).nds
 
 brahma: submodules bootstrap
 	@[ -d BrahmaLoader/data ] || mkdir -p BrahmaLoader/data
@@ -135,27 +140,29 @@ brahma: submodules bootstrap
 	@mv BrahmaLoader/output/*.smdh $(OUTPUT_D)
 	
 release:
-	@rm -fr $(BUILD) $(OUTPUT_D) $(CURDIR)/release
+	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 	@make --no-print-directory gateway
-	@-make --no-print-directory cakehax
+	@-make --no-print-directory cakerop
 	@rm -fr $(BUILD) $(OUTPUT).bin $(OUTPUT).elf $(CURDIR)/$(LOADER)/data
 	@-make --no-print-directory brahma
-	@[ -d $(CURDIR)/release ] || mkdir -p $(CURDIR)/release
-	@[ -d $(CURDIR)/release/$(TARGET) ] || mkdir -p $(CURDIR)/release/$(TARGET)
-	@[ -d $(CURDIR)/release/scripts ] || mkdir -p $(CURDIR)/release/scripts
-	@cp $(OUTPUT_D)/Launcher.dat $(CURDIR)/release
-	@cp $(OUTPUT).bin $(CURDIR)/release
-	@-cp $(OUTPUT).dat $(CURDIR)/release
-	@-cp $(OUTPUT).3dsx $(CURDIR)/release/$(TARGET)
-	@-cp $(OUTPUT).smdh $(CURDIR)/release/$(TARGET)
-	@cp $(CURDIR)/scripts/*.py $(CURDIR)/release/scripts
-
+	@[ -d $(RELEASE) ] || mkdir -p $(RELEASE)
+	@[ -d $(RELEASE)/$(TARGET) ] || mkdir -p $(RELEASE)/$(TARGET)
+	@[ -d $(RELEASE)/scripts ] || mkdir -p $(RELEASE)/scripts
+	@cp $(OUTPUT_D)/Launcher.dat $(RELEASE)
+	@-cp $(OUTPUT).bin $(RELEASE)
+	@-cp $(OUTPUT).dat $(RELEASE)
+	@-cp $(OUTPUT).nds $(RELEASE)
+	@-cp $(OUTPUT).3dsx $(RELEASE)/$(TARGET)
+	@-cp $(OUTPUT).smdh $(RELEASE)/$(TARGET)
+	@cp $(CURDIR)/scripts/*.py $(RELEASE)/scripts
+	
 #---------------------------------------------------------------------------------
 clean:
 	@echo clean ...
 	@-make clean --no-print-directory -C CakeHax
+	@-make clean --no-print-directory -C CakesROP
 	@-make clean --no-print-directory -C BrahmaLoader
-	@rm -fr $(BUILD) $(OUTPUT_D) release
+	@rm -fr $(BUILD) $(OUTPUT_D) $(RELEASE)
 
 
 #---------------------------------------------------------------------------------
