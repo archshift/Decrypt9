@@ -175,6 +175,8 @@ def parseNCCH(fh, offs=0, idx=0, titleId='', standAlone=1):
     if usesSeedCrypto == 0x20:
         usesSeedCrypto = 1
         print tab + 'Uses 9.x SEED crypto'
+    else:
+        usesSeedCrypto = 0
     
     
     print ''
