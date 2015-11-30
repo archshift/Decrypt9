@@ -324,32 +324,35 @@ u32 UpdateSeedDb(u32 param)
     }
     
     // search and extract seeds
-    for ( size_t i = 0; i < 2000; i++ ) {
-        static const u8 magic[4] = { 0x00, 0x00, 0x04, 0x00 };
-        u8* titleId = buffer + 0x7000 + (i*8);
-        u8* seed = buffer + 0x7000 + (2000*8) + (i*16);
-        if (memcmp(titleId + 4, magic, 4) != 0) continue;
-        // seed found, check if it already exists
-        u32 entryPos = 0;
-        for (entryPos = 0; entryPos < seedinfo->n_entries; entryPos++)
-            if (memcmp(titleId, &(seedinfo->entries[entryPos].titleId), 8) == 0) break;
-        if (entryPos < seedinfo->n_entries) {
-            Debug("Found %08X%08X seed (duplicate)", *((u32*) (titleId + 4)), *((u32*) titleId));
-            continue;
+    for ( int n = 0; n < 2; n++ ) {
+        u8* seed_data = buffer + ((n == 0) ? 0x7000 : 0x5C000);
+        for ( size_t i = 0; i < 2000; i++ ) {
+            static const u8 magic[4] = { 0x00, 0x00, 0x04, 0x00 };
+            u8* titleId = seed_data + (i*8);
+            u8* seed = seed_data + (2000*8) + (i*16);
+            if (memcmp(titleId + 4, magic, 4) != 0) continue;
+            // seed found, check if it already exists
+            u32 entryPos = 0;
+            for (entryPos = 0; entryPos < seedinfo->n_entries; entryPos++)
+                if (memcmp(titleId, &(seedinfo->entries[entryPos].titleId), 8) == 0) break;
+            if (entryPos < seedinfo->n_entries) {
+                Debug("Found %08X%08X seed (duplicate)", getle32(titleId + 4), getle32(titleId));
+                continue;
+            }
+            // seed is new, create a new entry
+            Debug("Found %08X%08X seed (new)", getle32(titleId + 4), getle32(titleId));
+            memset(&(seedinfo->entries[entryPos]), 0x00, sizeof(SeedInfoEntry));
+            memcpy(&(seedinfo->entries[entryPos].titleId), titleId, 8);
+            memcpy(&(seedinfo->entries[entryPos].external_seed), seed, 16);
+            seedinfo->n_entries++;
+            nNewSeeds++;
         }
-        // seed is new, create a new entry
-        Debug("Found %08X%08X seed (new)", *((u32*) (titleId + 4)), *((u32*) titleId));
-        memset(&(seedinfo->entries[entryPos]), 0x00, sizeof(SeedInfoEntry));
-        memcpy(&(seedinfo->entries[entryPos].titleId), titleId, 8);
-        memcpy(&(seedinfo->entries[entryPos].external_seed), seed, 16);
-        seedinfo->n_entries++;
-        nNewSeeds++;
     }
     
     if (nNewSeeds == 0) {
         Debug("Found no new seeds, %i total", seedinfo->n_entries);
         FileClose();
-        return 1;
+        return 0;
     }
     
     Debug("Found %i new seeds, %i total", nNewSeeds, seedinfo->n_entries);

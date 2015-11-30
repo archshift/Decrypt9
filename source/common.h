@@ -26,6 +26,15 @@
     ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
        _a < _b ? _a : _b; })
+#define getbe16(d) \
+    (((d)[0]<<8) | (d)[1])
+#define getbe32(d) \
+    ((((u32) getbe16(d))<<16) | ((u32) getbe16(d+2)))
+#define getbe64(d) \
+    ((((u64) getbe32(d))<<32) | ((u64) getbe32(d+4)))
+#define getle16(d) (*((u16*) (d)))
+#define getle32(d) (*((u32*) (d)))
+#define getle64(d) (*((u64*) (d)))
 
 // work files / directories
 #define GAME_DIR "/D9Game"
