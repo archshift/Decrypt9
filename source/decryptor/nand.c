@@ -162,19 +162,19 @@ u32 GetNandCtr(u8* ctr, u32 offset)
             for (u8* c = (u8*) 0x080D8FFF; c > (u8*) 0x08000000; c--) {
                 if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
                     ctr_start = c + 0x30;
-                    Debug("CTR Start 0x%08X", ctr_start);
+                    Debug("CTR start 0x%08X", ctr_start);
                     break;
                 }
             }
         }
         
         if (ctr_start == NULL) {
-            Debug("CTR Start not found!");
+            Debug("CTR start not found!");
             return 1;
         }
     }
     
-    // the CTR is stored backwards in memory
+    // the ctr is stored backwards in memory
     if (offset >= 0x0B100000) { // CTRNAND/AGBSAVE region
         for (u32 i = 0; i < 16; i++)
             ctr[i] = *(ctr_start + (0xF - i));
@@ -188,6 +188,7 @@ u32 GetNandCtr(u8* ctr, u32 offset)
 
     return 0;
 }
+
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 {
     CryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer, .mode = partition->mode};
@@ -226,24 +227,23 @@ u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo*
     return result;
 }
 
-
-
 u32 DumpNand(u32 param)
 {
     u8* buffer = BUFFER_ADDRESS;
-    u32 nand_size = getMMCDevice(0)->total_size * 0x200;
+    u32 nand_size = getMMCDevice(0)->total_size * NAND_SECTOR_SIZE;
     u32 result = 0;
 
     Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
 
-    if (!DebugFileCreate("NAND.bin", true))
+    if (!DebugFileCreate((IsEmuNand()) ? "EmuNAND.bin" : "NAND.bin", true))
         return 1;
 
     u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        u32 read_sectors = min(SECTORS_PER_READ, (n_sectors - i));
         ShowProgress(i, n_sectors);
-        ReadNandSectors(i, SECTORS_PER_READ, buffer);
-        if(!DebugFileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE)) {
+        ReadNandSectors(i, read_sectors, buffer);
+        if(!DebugFileWrite(buffer, NAND_SECTOR_SIZE * read_sectors, i * NAND_SECTOR_SIZE)) {
             result = 1;
             break;
         }
@@ -335,27 +335,38 @@ u32 EncryptFileToNand(const char* filename, u32 offset, u32 size, PartitionInfo*
 u32 RestoreNand(u32 param)
 {
     u8* buffer = BUFFER_ADDRESS;
-    u32 nand_size = getMMCDevice(0)->total_size * 0x200;
+    u32 nand_size = getMMCDevice(0)->total_size * NAND_SECTOR_SIZE;
     u32 result = 0;
+    u8 magic[4];
 
-    if (!DebugFileOpen("NAND.bin"))
+    if (IsEmuNand()) {
+        if (!DebugFileOpen("EmuNAND.bin") && !DebugFileOpen("NAND.bin"))
+            return 1;
+    } else if (!DebugFileOpen("NAND.bin"))
         return 1;
     if (nand_size != FileGetSize()) {
         FileClose();
         Debug("NAND backup has the wrong size!");
         return 1;
     };
+    if(!DebugFileRead(magic, 4, 0x100))
+        return 1;
+    if (memcmp(magic, "NCSD", 4) != 0) {
+        Debug("Not a proper NAND backup!");
+        return 1;
+    }
     
     Debug("Restoring System NAND. Size (MB): %u", nand_size / (1024 * 1024));
 
     u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        u32 read_sectors = min(SECTORS_PER_READ, (n_sectors - i));
         ShowProgress(i, n_sectors);
-        if(!DebugFileRead(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE)) {
+        if(!DebugFileRead(buffer, NAND_SECTOR_SIZE * read_sectors, i * NAND_SECTOR_SIZE)) {
             result = 1;
             break;
         }
-        WriteNandSectors(i, SECTORS_PER_READ, buffer);
+        WriteNandSectors(i, read_sectors, buffer);
     }
 
     ShowProgress(0, 0);
