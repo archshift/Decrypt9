@@ -37,6 +37,9 @@ bool DebugDirOpen(const char* path);
     fname needs to be allocated to fsize bytes minimum. */
 bool DirRead(char* fname, int fsize);
 
+/** Get list of files under a given path **/
+bool GetFileList(const char* path, char* list, int lsize, bool recursive);
+
 /** Gets remaining space on SD card in bytes */
 uint64_t RemainingStorageSpace();
 

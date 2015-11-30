@@ -182,6 +182,46 @@ void DirClose()
     f_closedir(&dir);
 }
 
+bool GetFileListWorker(char** list, int* lsize, char* fpath, int fsize, bool recursive)
+{
+    DIR pdir;
+    FILINFO fno;
+    char* fname = fpath + strnlen(fpath, fsize - 1);
+    bool ret = false;
+    
+    if (f_opendir(&pdir, fpath) != FR_OK) return false;
+    (fname++)[0] = '/';
+    fno.lfname = fname;
+    fno.lfsize = fsize - (fname - fpath);
+    
+    while (f_readdir(&pdir, &fno) == FR_OK) {
+        if (fno.fname[0] == '.') continue;
+        if (fname[0] == 0)
+            strcpy(fname, fno.fname);
+        if (fno.fname[0] == 0) {
+            ret = true;
+            break;
+        } else if (fno.fattrib & AM_DIR) {
+            if (recursive && !GetFileListWorker(list, lsize, fpath, fsize, recursive))
+                break;
+        } else {
+            snprintf(*list, *lsize, "%s\n", fpath);
+            for(;(*list)[0] != '\0' && (*lsize) > 1; (*list)++, (*lsize)--); 
+            if ((*lsize) <= 1) break;
+        }
+    }
+    f_closedir(&pdir);
+    
+    return ret;
+}
+
+bool GetFileList(const char* path, char* list, int lsize, bool recursive)
+{
+    char fpath[256];
+    strncpy(fpath, path, 256);
+    return GetFileListWorker(&list, &lsize, fpath, 256, recursive);
+}
+
 static uint64_t ClustersToBytes(FATFS* fs, DWORD clusters)
 {
     uint64_t sectors = clusters * fs->csize;

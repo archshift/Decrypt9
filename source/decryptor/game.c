@@ -8,6 +8,76 @@
 #include "decryptor/game.h"
 
 
+u32 GetSdCtr(u8* ctr, const char* path)
+{
+    // get AES counter
+    u8 hashstr[256];
+    u8 sha256sum[32];
+    u32 plen = 0;
+    for (u32 i = 0; i < 128; i++) {
+        hashstr[2*i] = path[i];
+        hashstr[2*i+1] = 0;
+        if (path[i] == 0) {
+            plen = i;
+            break;
+        }
+    }
+    sha_init(SHA256_MODE);
+    sha_update(hashstr, (plen + 1) * 2);
+    sha_get(sha256sum);
+    for (u32 i = 0; i < 16; i++)
+        ctr[i] = sha256sum[i] ^ sha256sum[i+16];
+    
+    return 0;
+}
+
+u32 SdInfoGen(SdInfo* info)
+{
+    char* filelist = (char*)0x20400000;
+    
+    Debug("Generating SDinfo.bin in memory...");
+    
+    if (!GetFileList("/Nintendo 3DS", filelist, 0x100000, true)) {
+        Debug("Failed retrieving the filelist");
+    }
+    
+    u32 n = 0;
+    SdInfoEntry* entries = info->entries;
+    for (char* path = strtok(filelist, "\n"); path != NULL; path = strtok(NULL, "\n")) {
+        u32 plen = strnlen(path, 256);
+        if ((strncmp(path, "/Nintendo 3DS/Private/", 22) == 0) || (plen < 13 + 33 + 33))
+            continue;
+        // get size in MB
+        if (!FileOpen(path))
+            continue;
+        entries[n].size_mb = (FileGetSize() + (1024 * 1024) - 1) / (1024 * 1024);
+        FileClose();
+        // skip to relevant part of path
+        path += 13 + 33 + 33;
+        plen -= 13 + 33 + 33;
+        if ((path[0] != '/') || (plen >= 128)) continue;
+        // get filename
+        char* filename = entries[n].filename;
+        filename[0] = '/';
+        for (u32 i = 1; i < 180 && path[i] != 0; i++)
+            filename[i] = (path[i] == '/') ? '.' : path[i];
+        strcpy(filename + plen, ".xorpad");
+        // get AES counter
+        GetSdCtr(entries[n].ctr, path);
+        // duplicate check
+        u32 d;
+        for (d = 0; d < n; d++)
+            if (strncmp(entries[n].filename, entries[d].filename, 180) == 0) break;
+        if (d < n) {
+            entries[d].size_mb = max(entries[d].size_mb, entries[n].size_mb);
+        } else n++;
+        if (n >= MAX_ENTRIES) break;
+    }
+    info->n_entries = n;
+    
+    return (n > 0) ? 0 : 1;
+}
+
 u32 NcchPadgen(u32 param)
 {
     u32 result;
@@ -153,9 +223,7 @@ u32 NcchPadgen(u32 param)
 u32 SdPadgen(u32 param)
 {
     u32 result;
-
     SdInfo *info = (SdInfo*)0x20316000;
-
     u8 movable_seed[0x120] = {0};
 
     // Load console 0x34 keyY from movable.sed if present on SD card
@@ -166,33 +234,33 @@ u32 SdPadgen(u32 param)
         }
         FileClose();
         if (memcmp(movable_seed, "SEED", 4) != 0) {
-            Debug("movable.sed is too corrupt!");
+            Debug("movable.sed is corrupt!");
             return 1;
         }
         setup_aeskeyY(0x34, &movable_seed[0x110]);
         use_aeskey(0x34);
     }
 
-    if (!DebugFileOpen("SDinfo.bin"))
-        return 1;
-    if (!DebugFileRead(info, 4, 0)) {
+    if (DebugFileOpen("SDinfo.bin")) {
+        if (!DebugFileRead(info, 4, 0)) {
+            FileClose();
+            return 1;
+        }
+        if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
+            FileClose();
+            Debug("Too many/few entries!");
+            return 1;
+        }
+        if (!DebugFileRead(info->entries, info->n_entries * sizeof(SdInfoEntry), 4)) {
+            FileClose();
+            return 1;
+        }
         FileClose();
-        return 1;
-    }
-
-    if (!info->n_entries || info->n_entries > MAX_ENTRIES) {
-        FileClose();
-        Debug("Too many/few entries!");
+    } else if (SdInfoGen(info) != 0) {
         return 1;
     }
 
     Debug("Number of entries: %i", info->n_entries);
-
-    if (!DebugFileRead(info->entries, info->n_entries * sizeof(SdInfoEntry), 4)) {
-        FileClose();
-        return 1;
-    }
-    FileClose();
 
     for(u32 i = 0; i < info->n_entries; i++) {
         Debug ("Creating pad number: %i. Size (MB): %i", i+1, info->entries[i].size_mb);
