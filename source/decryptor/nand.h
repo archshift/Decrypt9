@@ -5,12 +5,13 @@
 #define NAND_SECTOR_SIZE 0x200
 #define SECTORS_PER_READ (BUFFER_MAX_SIZE / NAND_SECTOR_SIZE)
 
-#define P_TWLN    0
-#define P_TWLP    1
-#define P_AGBSAVE 2
-#define P_FIRM0   3
-#define P_FIRM1   4
-#define P_CTRNAND 5
+#define P_TWLN    (1<<0)
+#define P_TWLP    (1<<1)
+#define P_AGBSAVE (1<<2)
+#define P_FIRM0   (1<<3)
+#define P_FIRM1   (1<<4)
+#define P_CTRNAND (1<<5)
+#define P_ALL     (P_TWLN | P_TWLP | P_AGBSAVE | P_FIRM0 | P_FIRM1 | P_CTRNAND)
 
 typedef struct {
     char name[16];
@@ -41,11 +42,5 @@ u32 TwlNandPadgen(u32 param);
 
 u32 DumpNand(u32 param);
 u32 RestoreNand(u32 param);
-
-u32 DecryptAllNandPartitions(u32 param);
-u32 DecryptTwlNandPartition(u32 param);
-u32 DecryptCtrNandPartition(u32 param);
-
-u32 InjectAllNandPartitions(u32 param);
-u32 InjectTwlNandPartition(u32 param);
-u32 InjectCtrNandPartition(u32 param);
+u32 DecryptNandPartitions(u32 param);
+u32 InjectNandPartitions(u32 param);

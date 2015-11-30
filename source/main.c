@@ -25,18 +25,18 @@ MenuInfo menu[] =
         "NAND Options 1", 4,
         {
             { "NAND Backup", &DumpNand, false, false, 0 },
-            { "All Partitions Dump", &DecryptAllNandPartitions, false, false, 0 },
-            { "TWLNAND Partition Dump", &DecryptTwlNandPartition, false, false, 0 },
-            { "CTRNAND Partition Dump", &DecryptCtrNandPartition, false, false, 0 }
+            { "All Partitions Dump", &DecryptNandPartitions, false, false, P_ALL },
+            { "TWLNAND Partition Dump", &DecryptNandPartitions, false, false, P_TWLN },
+            { "CTRNAND Partition Dump", &DecryptNandPartitions, false, false, P_CTRNAND }
         }
     },
     {
         "NAND Options 2", 4,
         {
             { "NAND Restore", &RestoreNand, true, false, 0 },
-            { "All Partitions Inject", &InjectAllNandPartitions, true, false, 0 },
-            { "TWLNAND Partition Inject", &InjectTwlNandPartition, true, false, 0 },
-            { "CTRNAND Partition Inject", &InjectCtrNandPartition, true, false, 0 }
+            { "All Partitions Inject", &InjectNandPartitions, true, false, P_ALL },
+            { "TWLNAND Partition Inject", &InjectNandPartitions, true, false, P_TWLN },
+            { "CTRNAND Partition Inject", &InjectNandPartitions, true, false, P_CTRNAND }
         }
     },
     {
