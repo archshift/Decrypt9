@@ -57,7 +57,8 @@ MenuInfo menu[] =
     {
         "Game Decryptor Options", 1,
         {
-            { "NCCH/NCSD Decryptor",          &DecryptNcsdNcchBatch,  false, false, 0 }
+            { "NCCH/NCSD Decryptor",          &DecryptNcsdNcchBatch,  false, false, 0 },
+            { "SD Decryptor/Encryptor",       &CryptSdFiles,          false, false, 0 }
         }
     },
     // everything below is not contained in the main menu

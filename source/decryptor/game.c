@@ -363,13 +363,13 @@ u32 UpdateSeedDb(u32 param)
     return 0;
 }
 
-u32 DecryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info)
+u32 CryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info)
 {
     u8* buffer = BUFFER_ADDRESS;
     u32 offset_16 = offset % 16;
     u32 result = 0;
 
-    // No DebugFileOpen() - at this point the file has already been checked enough
+    // no DebugFileOpen() - at this point the file has already been checked enough
     if (!FileOpen(filename)) 
         return 1;
 
@@ -541,7 +541,7 @@ u32 DecryptNcch(const char* filename, u32 offset)
             add_ctr(info0.ctr, 0x200); // exHeader offset
         else
             info0.ctr[8] = 1;
-        result |= DecryptSdToSd(filename, offset + 0x200, 0x800, &info0);
+        result |= CryptSdToSd(filename, offset + 0x200, 0x800, &info0);
     }
     
     // process ExeFS
@@ -558,7 +558,7 @@ u32 DecryptNcch(const char* filename, u32 offset)
             u32 offset_code = 0;
             u32 size_code = 0;
             // find .code offset and size
-            result |= DecryptSdToSd(filename, offset + offset_byte, 0x200, &info0);
+            result |= CryptSdToSd(filename, offset + offset_byte, 0x200, &info0);
             if(!FileOpen(filename))
                 return 1;
             if(!DebugFileRead(buffer, 0x200, offset + offset_byte)) {
@@ -575,19 +575,19 @@ u32 DecryptNcch(const char* filename, u32 offset)
             }
             // special ExeFS decryption routine (only .code has new encryption)
             if (size_code > 0) {
-                result |= DecryptSdToSd(filename, offset + offset_byte + 0x200, offset_code - 0x200, &info0);
+                result |= CryptSdToSd(filename, offset + offset_byte + 0x200, offset_code - 0x200, &info0);
                 memcpy(info1.ctr, info0.ctr, 16); // this depends on the exeFS file offsets being aligned (which they are)
                 add_ctr(info0.ctr, size_code / 0x10);
                 info0.setKeyY = info1.setKeyY = 1;
-                result |= DecryptSdToSd(filename, offset + offset_byte + offset_code, size_code, &info1);
-                result |= DecryptSdToSd(filename,
+                result |= CryptSdToSd(filename, offset + offset_byte + offset_code, size_code, &info1);
+                result |= CryptSdToSd(filename,
                     offset + offset_byte + offset_code + size_code,
                     size_byte - (offset_code + size_code), &info0);
             } else {
-                result |= DecryptSdToSd(filename, offset + offset_byte + 0x200, size_byte - 0x200, &info0);
+                result |= CryptSdToSd(filename, offset + offset_byte + 0x200, size_byte - 0x200, &info0);
             }
         } else {
-            result |= DecryptSdToSd(filename, offset + offset_byte, size_byte, &info0);
+            result |= CryptSdToSd(filename, offset + offset_byte, size_byte, &info0);
         }
     }
     
@@ -602,7 +602,7 @@ u32 DecryptNcch(const char* filename, u32 offset)
         else
             info1.ctr[8] = 3;
         info1.setKeyY = 1;
-        result |= DecryptSdToSd(filename, offset + offset_byte, size_byte, &info1);
+        result |= CryptSdToSd(filename, offset + offset_byte, size_byte, &info1);
     }
     
     // set NCCH header flags
@@ -718,4 +718,86 @@ u32 DecryptNcsdNcchBatch(u32 param)
     }
     
     return !(n_processed);
+}
+
+u32 CryptSdFiles(u32 param) {
+    const char* subpaths[] = {"dbs", "extdata", "title", NULL};
+    char* batch_dir = GAME_DIR;
+    u32 n_processed = 0;
+    u32 n_failed = 0;
+    u32 plen = 0;
+    
+    if (!DebugDirOpen(batch_dir)) {
+        #ifdef WORK_DIR
+        Debug("Trying %s/ instead...", WORK_DIR);
+        if (!DebugDirOpen(WORK_DIR)) {
+            Debug("No working directory found!");
+            return 1;
+        }
+        batch_dir = WORK_DIR;
+        #else
+        Debug("Folders to decrypt go to %s/!", batch_dir);
+        return 1;
+        #endif
+    }
+    DirClose();
+    plen = strnlen(batch_dir, 128);
+    
+    // Load console 0x34 keyY from movable.sed if present on SD card
+    if (DebugFileOpen("movable.sed")) {
+        u8 movable_keyY[16];
+        u8 magic[4];
+        if (!DebugFileRead(magic, 4, 0)) {
+            FileClose();
+            return 1;
+        }
+        if (memcmp(magic, "SEED", 4) != 0) {
+            FileClose();
+            Debug("movable.sed is corrupt!");
+            return 1;
+        }
+        if (!DebugFileRead(movable_keyY, 0x10, 0x110)) {
+            FileClose();
+            return 1;
+        }
+        FileClose();
+        setup_aeskeyY(0x34, movable_keyY);
+        use_aeskey(0x34);
+    }
+    
+    // main processing loop
+    for (u32 s = 0; subpaths[s] != NULL; s++) {
+        char* filelist = (char*) 0x20400000;
+        char basepath[128];
+        u32 bplen;
+        Debug("Processing subpath \"%s\"...", subpaths[s]);
+        sprintf(basepath, "%s/%s", batch_dir, subpaths[s]);
+        if (!GetFileList(basepath, filelist, 0x100000, true)) {
+            Debug("Not found!");
+            continue;
+        }
+        bplen = strnlen(basepath, 128);
+        for (char* path = strtok(filelist, "\n"); path != NULL; path = strtok(NULL, "\n")) {
+            u32 fsize = 0;
+            CryptBufferInfo info = {.keyslot = 0x34, .setKeyY = 0, .mode = AES_CNT_CTRNAND_MODE};
+            GetSdCtr(info.ctr, path + plen);
+            if (FileOpen(path)) {
+                fsize = FileGetSize();
+                FileClose();
+            } else {
+                Debug("Could not open: %s", path + bplen);
+                n_failed++;
+                continue;
+            }
+            Debug("%2u: %s", n_processed, path + bplen);
+            if (CryptSdToSd(path, 0, fsize, &info) == 0) {
+                n_processed++;
+            } else {
+                Debug("Failed!");
+                n_failed++;
+            }
+        }
+    }
+    
+    return 0;
 }

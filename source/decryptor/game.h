@@ -80,11 +80,15 @@ typedef struct {
 } __attribute__((packed, aligned(16))) NcchHeader;
 
 
-u32 DecryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info);
+u32 GetSdCtr(u8* ctr, const char* path);
+u32 SdInfoGen(SdInfo* info);
+u32 CryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info);
 u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash);
 u32 DecryptNcch(const char* filename, u32 offset);
+
 // --> FEATURE FUNCTIONS <--
 u32 NcchPadgen(u32 param);
 u32 SdPadgen(u32 param);
 u32 UpdateSeedDb(u32 param);
 u32 DecryptNcsdNcchBatch(u32 param);
+u32 CryptSdFiles(u32 param);
