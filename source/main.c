@@ -55,9 +55,10 @@ MenuInfo menu[] =
         }
     },
     {
-        "Game Decryptor Options", 1,
+        "Game Decryptor Options", 3,
         {
-            { "NCCH/NCSD Decryptor",          &DecryptNcsdNcchBatch,  false, false, 0 },
+            { "NCCH/NCSD Decryptor",          &CryptGameFiles,        false, false, 0 },
+            { "NCCH/NCSD Encryptor",          &CryptGameFiles,        false, false, GC_NCCH_ENCRYPT },
             { "SD Decryptor/Encryptor",       &CryptSdFiles,          false, false, 0 }
         }
     },

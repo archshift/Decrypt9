@@ -3,6 +3,7 @@
 #include "common.h"
 #include "decryptor/decryptor.h"
 
+#define GC_NCCH_ENCRYPT (1<<0)
 #define MAX_ENTRIES 1024
 
 typedef struct {
@@ -84,11 +85,12 @@ u32 GetSdCtr(u8* ctr, const char* path);
 u32 SdInfoGen(SdInfo* info);
 u32 CryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info);
 u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash);
-u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId);
+u32 CryptNcch(const char* filename, u32 offset, u32 size, u64 seedId, u8* encrypt_flags);
+
 
 // --> FEATURE FUNCTIONS <--
 u32 NcchPadgen(u32 param);
 u32 SdPadgen(u32 param);
 u32 UpdateSeedDb(u32 param);
-u32 DecryptNcsdNcchBatch(u32 param);
+u32 CryptGameFiles(u32 param);
 u32 CryptSdFiles(u32 param);

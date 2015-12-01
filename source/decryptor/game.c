@@ -428,7 +428,7 @@ u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash)
     return (memcmp(hash, digest, 32) == 0) ? 0 : 1; 
 }
 
-u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
+u32 CryptNcch(const char* filename, u32 offset, u32 size, u64 seedId, u8* encrypt_flags)
 {
     NcchHeader* ncch = (NcchHeader*) 0x20316200;
     u8* buffer = (u8*) 0x20316400;
@@ -460,8 +460,14 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     }        
     
     // check if encrypted
-    if (ncch->flags[7] & 0x04) {
+    if (!encrypt_flags && (ncch->flags[7] & 0x04)) {
         Debug("NCCH is not encrypted");
+        return 2; // not an actual error
+    } else if (encrypt_flags && !(ncch->flags[7] & 0x04)) {
+        Debug("NCCH is already encrypted");
+        return 2; // not an actual error
+    } else if (encrypt_flags && (encrypt_flags[7] & 0x04)) {
+        Debug("Nothing to do!");
         return 2; // not an actual error
     }
     
@@ -474,6 +480,12 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     // select correct title ID for seed crypto
     if (seedId == 0) seedId = ncch->partitionId;
     
+    // copy over encryption parameters (if applicable)
+    if (encrypt_flags) {
+        ncch->flags[3] = encrypt_flags[3];
+        ncch->flags[7] &= (0x01|0x20|0x04)^0xFF;
+        ncch->flags[7] |= (0x01|0x20)&encrypt_flags[7];
+    }
     
     // check crypto type
     bool uses7xCrypto = ncch->flags[3];
@@ -500,14 +512,14 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     
     // check secure4 crypto
     if (usesSec4Crypto) {
-        Debug("Secure4 cannot be decrypted yet!");
+        Debug("Secure4 crypto is not supported!");
         return 1;
     }
     
     // check / setup 7x crypto
     if (uses7xCrypto && (GetUnitPlatform() == PLATFORM_3DS)) {
         if (usesSec3Crypto) {
-            Debug("Can only be decrypted on N3DS!");
+            Debug("Secure3 crypto needs a N3DS!");
             return 1;
         }
         if (FileOpen("slot0x25KeyX.bin")) {
@@ -550,7 +562,7 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
                 return 1;
             }
         } else {
-            Debug("Need seeddb.bin to decrypt!");
+            Debug("Need seeddb.bin for seed crypto!");
             return 1;
         }
     }
@@ -568,7 +580,8 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     memcpy(info1.keyY, (usesSeedCrypto) ? seedKeyY : ncch->signature, 16);
     info1.keyslot = (usesSec3Crypto) ? 0x18 : ((uses7xCrypto) ? 0x25 : 0x2C);
     
-    Debug("Decrypt ExHdr/ExeFS/RomFS (%ukB/%ukB/%uMB)",
+    Debug("%s ExHdr/ExeFS/RomFS (%ukB/%ukB/%uMB)",
+        (encrypt_flags) ? "Encrypt" : "Decrypt",
         (ncch->size_exthdr > 0) ? 0x800 / 1024 : 0,
         (ncch->size_exefs * 0x200) / 1024,
         (ncch->size_romfs * 0x200) / (1024*1024));
@@ -596,7 +609,8 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
             u32 offset_code = 0;
             u32 size_code = 0;
             // find .code offset and size
-            result |= CryptSdToSd(filename, offset + offset_byte, 0x200, &info0);
+            if (!encrypt_flags) // decrypt this first (when decrypting)
+                result |= CryptSdToSd(filename, offset + offset_byte, 0x200, &info0);
             if(!FileOpen(filename))
                 return 1;
             if(!DebugFileRead(buffer, 0x200, offset + offset_byte)) {
@@ -611,6 +625,8 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
                     break;
                 }
             }
+            if (encrypt_flags) // encrypt this last (when encrypting)
+                result |= CryptSdToSd(filename, offset + offset_byte, 0x200, &info0);
             // special ExeFS decryption routine (only .code has new encryption)
             if (size_code > 0) {
                 result |= CryptSdToSd(filename, offset + offset_byte + 0x200, offset_code - 0x200, &info0);
@@ -643,9 +659,11 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     }
     
     // set NCCH header flags
-    ncch->flags[3] = 0x00;
-    ncch->flags[7] &= (0x01|0x20)^0xFF;
-    ncch->flags[7] |= 0x04;
+    if (!encrypt_flags) {
+        ncch->flags[3] = 0x00;
+        ncch->flags[7] &= (0x01|0x20)^0xFF;
+        ncch->flags[7] |= 0x04;
+    }
     
     // write header back
     if (!FileOpen(filename))
@@ -657,7 +675,7 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     FileClose();
     
     // verify decryption
-    if (result == 0) {
+    if ((result == 0) && !encrypt_flags) {
         char* status_str[3] = { "OK", "Fail", "-" }; 
         u32 ver_exthdr = 2;
         u32 ver_exefs = 2;
@@ -678,13 +696,17 @@ u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId)
     return result;
 }
 
-u32 DecryptNcsdNcchBatch(u32 param)
+u32 CryptGameFiles(u32 param)
 {
+    u8 ncch_crypt_none[8]     = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04 };
+    u8 ncch_crypt_standard[8] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
     const char* ncsd_partition_name[8] = {
         "Executable", "Manual", "DPC", "Unknown", "Unknown", "Unknown", "UpdateN3DS", "UpdateO3DS" 
     };
     char* batch_dir = GAME_DIR;
     u8* buffer = (u8*) 0x20316000;
+    u8* ncch_crypt = (param & GC_NCCH_ENCRYPT) ? ncch_crypt_standard : NULL;
+
     u32 n_processed = 0;
     u32 n_failed = 0;
     
@@ -717,8 +739,8 @@ u32 DecryptNcsdNcchBatch(u32 param)
         FileClose();
         
         if (memcmp(buffer + 0x100, "NCCH", 4) == 0) {
-            Debug("Decrypting NCCH \"%s\"", path + path_len);
-            if (DecryptNcch(path, 0x00, 0, 0) != 1) {
+            Debug("Processing NCCH \"%s\"", path + path_len);
+            if (CryptNcch(path, 0x00, 0, 0, ncch_crypt) != 1) {
                 Debug("Success!");
                 n_processed++;
             } else {
@@ -728,7 +750,7 @@ u32 DecryptNcsdNcchBatch(u32 param)
         } else if (memcmp(buffer + 0x100, "NCSD", 4) == 0) {
             if (getle64(buffer + 0x110) != 0) 
                 continue; // skip NAND backup NCSDs
-            Debug("Decrypting NCSD \"%s\"", path + path_len);
+            Debug("Processing NCSD \"%s\"", path + path_len);
             u32 p;
             for (p = 0; p < 8; p++) {
                 u64 seedId = (p) ? getle64(buffer + 0x108) : 0;
@@ -737,7 +759,7 @@ u32 DecryptNcsdNcchBatch(u32 param)
                 if (size == 0) 
                     continue;
                 Debug("Partition %i (%s)", p, ncsd_partition_name[p]);
-                if (DecryptNcch(path, offset, size, seedId) == 1)
+                if (CryptNcch(path, offset, size, seedId, ncch_crypt) == 1)
                     break;
             }
             if ( p == 8 ) {
@@ -754,7 +776,7 @@ u32 DecryptNcsdNcchBatch(u32 param)
     
     if (n_processed) {
         Debug("");
-        Debug("%ux decrypted / %ux failed ", n_processed, n_failed);
+        Debug("%ux processed / %ux failed ", n_processed, n_failed);
     } else if (!n_failed) {
         Debug("Nothing found in %s/!", batch_dir);
     }
