@@ -84,7 +84,7 @@ u32 GetSdCtr(u8* ctr, const char* path);
 u32 SdInfoGen(SdInfo* info);
 u32 CryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info);
 u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash);
-u32 DecryptNcch(const char* filename, u32 offset);
+u32 DecryptNcch(const char* filename, u32 offset, u32 size, u64 seedId);
 
 // --> FEATURE FUNCTIONS <--
 u32 NcchPadgen(u32 param);
