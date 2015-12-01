@@ -44,7 +44,7 @@ MenuInfo menu[] =
         {
             { "Titlekey Decrypt (file)", &DecryptTitlekeysFile, false, false, 0 },
             { "Titlekey Decrypt (NAND)", &DecryptTitlekeysNand, false, false, 0 },
-            { "Ticket Dump", &DumpTicket, false, false, 0 },
+            { "Ticket Dump", &DumpFile, false, false, F_TICKET },
             { "NCCH Decryptor", &DecryptNcsdNcchBatch, false, false, 0 }
         }
     },
@@ -52,9 +52,9 @@ MenuInfo menu[] =
         "EmuNAND Options", 4,
         {
             { "Titlekey Decrypt", &DecryptTitlekeysNand, false, true, 0 },
-            { "Ticket Dump", &DumpTicket, false, true, 0 },
+            { "Ticket Dump", &DumpFile, false, true, F_TICKET },
             { "Update SeedDB", &UpdateSeedDb, false, true, 0 },
-            { "Seedsave Dump", &DumpSeedsave, false, true, 0 }
+            { "Seedsave Dump", &DumpFile, false, true, F_SEEDSAVE }
         }
     }
 };
