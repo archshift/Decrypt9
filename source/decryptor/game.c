@@ -5,6 +5,7 @@
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
 #include "decryptor/nandfat.h"
+#include "decryptor/titlekey.h"
 #include "decryptor/game.h"
 
 
@@ -405,17 +406,17 @@ u32 CryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* inf
     return result;
 }
 
-u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash)
+u32 GetHashFromFile(const char* filename, u32 offset, u32 size, u8* hash)
 {
     // uses the standard buffer, so be careful
-    u8* buffer = BUFFER_ADDRESS; 
-    u8 digest[32];
+    u8* buffer = BUFFER_ADDRESS;
     
     if (!FileOpen(filename))
         return 1;
     sha_init(SHA256_MODE);
     for (u32 i = 0; i < size; i += BUFFER_MAX_SIZE) {
         u32 read_bytes = min(BUFFER_MAX_SIZE, (size - i));
+        if (size >= 0x100000) ShowProgress(i, size);
         if(!FileRead(buffer, read_bytes, offset + i)) {
             FileClose();
             return 1;
@@ -423,7 +424,18 @@ u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash)
         sha_update(buffer, read_bytes);
     }
     sha_get(hash);
+    ShowProgress(0, 0);
     FileClose();
+    
+    return 0;
+}
+
+u32 CheckHashFromFile(const char* filename, u32 offset, u32 size, u8* hash)
+{
+    u8 digest[32];
+    
+    if (GetHashFromFile(filename, offset, size, digest) != 0)
+        return 1;
     
     return (memcmp(hash, digest, 32) == 0) ? 0 : 1; 
 }
@@ -682,11 +694,11 @@ u32 CryptNcch(const char* filename, u32 offset, u32 size, u64 seedId, u8* encryp
         u32 ver_romfs = 2;
         
         if (ncch->size_exthdr > 0)
-            ver_exthdr = CheckHash(filename, offset + 0x200, 0x400, ncch->hash_exthdr);
+            ver_exthdr = CheckHashFromFile(filename, offset + 0x200, 0x400, ncch->hash_exthdr);
         if (ncch->size_exefs_hash > 0)
-            ver_exefs = CheckHash(filename, offset + (ncch->offset_exefs * 0x200), ncch->size_exefs_hash * 0x200, ncch->hash_exefs);
+            ver_exefs = CheckHashFromFile(filename, offset + (ncch->offset_exefs * 0x200), ncch->size_exefs_hash * 0x200, ncch->hash_exefs);
         if (ncch->size_romfs_hash > 0)
-            ver_romfs = CheckHash(filename, offset + (ncch->offset_romfs * 0x200), ncch->size_romfs_hash * 0x200, ncch->hash_romfs);
+            ver_romfs = CheckHashFromFile(filename, offset + (ncch->offset_romfs * 0x200), ncch->size_romfs_hash * 0x200, ncch->hash_romfs);
         
         Debug("Verify ExHdr/ExeFS/RomFS: %s/%s/%s", status_str[ver_exthdr], status_str[ver_exefs], status_str[ver_romfs]);
         result = (((ver_exthdr | ver_exefs | ver_romfs) & 1) == 0) ? 0 : 1;
@@ -695,6 +707,221 @@ u32 CryptNcch(const char* filename, u32 offset, u32 size, u64 seedId, u8* encryp
     
     return result;
 }
+
+u32 CryptCia(const char* filename, u8* ncch_crypt, bool cia_encrypt, bool cxi_only)
+{
+    u8* buffer = (u8*) 0x20316600;
+    __attribute__((aligned(16))) u8 titlekey[16];
+    u64 titleId;
+    u8* content_list;
+    u8* ticket_data;
+    u8* tmd_data;
+    
+    u32 offset_ticktmd;
+    u32 offset_content;    
+    u32 size_ticktmd;
+    u32 size_ticket;
+    u32 size_tmd;
+    u32 size_content;
+    
+    u32 content_count;
+    u32 result = 0;
+    
+    if (cia_encrypt) // no deep processing when encrypting
+        ncch_crypt = NULL;
+    
+    if (!FileOpen(filename)) // already checked this file
+        return 1;
+    if (!DebugFileRead(buffer, 0x20, 0x00)) {
+        FileClose();
+        return 1;
+    }
+    
+    // get offsets for various sections & check
+    u32 section_size[6];
+    u32 section_offset[6];
+    section_size[0] = getle32(buffer);
+    section_offset[0] = 0;
+    for (u32 i = 1; i < 6; i++) {
+        section_size[i] = getle32(buffer + 4 + ((i == 4) ? (5*4) : (i == 5) ? (4*4) : (i*4)) );
+        section_offset[i] = section_offset[i-1] + align(section_size[i-1], 64);
+    }
+    offset_ticktmd = section_offset[2];
+    offset_content = section_offset[4];
+    size_ticktmd = section_offset[4] - section_offset[2];
+    size_ticket = section_size[2];
+    size_tmd = section_size[3];
+    size_content = section_size[4];
+    
+    if (FileGetSize() != section_offset[5] + align(section_size[5], 64)) {
+        Debug("Probably not a CIA file");
+        FileClose();
+        return 1;
+    }
+    
+    if ((size_ticktmd) > 0x10000) {
+        Debug("Ticket/TMD too big");
+        FileClose();
+        return 1;
+    }
+    
+    // load ticket & tmd to buffer, close file
+    if (!DebugFileRead(buffer, size_ticktmd, offset_ticktmd)) {
+        FileClose();
+        return 1;
+    }
+    FileClose();
+    
+    u32 signature_size[2] = { 0 };
+    u8* section_data[2] = {buffer, buffer + align(size_ticket, 64)};
+    for (u32 i = 0; i < 2; i++) {
+        u32 type = section_data[i][3];
+        signature_size[i] = (type == 3) ? 0x240 : (type == 4) ? 0x140 : (type == 5) ? 0x80 : 0;         
+        if ((signature_size[i] == 0) || (memcmp(section_data[i], "\x00\x01\x00", 3) != 0)) {
+            Debug("Unknown signature type: %08X", getbe32(section_data[i]));
+            return 1;
+        }
+    }
+    
+    ticket_data = section_data[0] + signature_size[0];
+    size_ticket -= signature_size[0];
+    tmd_data = section_data[1] + signature_size[1];
+    size_tmd -= signature_size[1];
+    
+    // extract & decrypt titlekey
+    if (size_ticket < 0x210) {
+        Debug("Ticket is too small (%i byte)", size_ticket);
+        return 1;
+    }
+    TitleKeyEntry titlekeyEntry;
+    titleId = getbe64(ticket_data + 0x9C);
+    memcpy(titlekeyEntry.titleId, ticket_data + 0x9C, 8);
+    memcpy(titlekeyEntry.encryptedTitleKey, ticket_data + 0x7F, 16);
+    titlekeyEntry.commonKeyIndex = *(ticket_data + 0xB1);
+    DecryptTitlekey(&titlekeyEntry);
+    memcpy(titlekey, titlekeyEntry.encryptedTitleKey, 16);
+    
+    // get content data from TMD
+    content_count = getbe16(tmd_data + 0x9E);
+    content_list = tmd_data + 0xC4 + (64 * 0x24);
+    if (content_count * 0x30 != size_tmd - (0xC4 + (64 * 0x24))) {
+        Debug("TMD content count (%i) / list size mismatch", content_count);
+        return 1;
+    }
+    u32 size_tmd_content = 0;
+    for (u32 i = 0; i < content_count; i++)
+        size_tmd_content += getbe32(content_list + (0x30 * i) + 0xC);
+    if (size_tmd_content != size_content) {
+        Debug("TMD content size / actual size mismatch");
+        return 1;
+    }
+    
+    bool untouched = true;
+    u32 n_processed = 0;
+    u32 next_offset = offset_content;
+    CryptBufferInfo info = {.setKeyY = 0, .keyslot = 0x11, .mode = (cia_encrypt) ? AES_CNT_TITLEKEY_ENCRYPT_MODE : AES_CNT_TITLEKEY_DECRYPT_MODE};
+    setup_aeskey(0x11, titlekey);
+    
+    if (ncch_crypt)
+        Debug("Pass #1: CIA decryption...");
+    if (cxi_only) content_count = 1;
+    for (u32 i = 0; i < content_count; i++) {
+        u32 size = getbe32(content_list + (0x30 * i) + 0xC);
+        u32 offset = next_offset;
+        next_offset = offset + size;
+        if (!(content_list[(0x30 * i) + 0x7] & 0x1) != cia_encrypt)
+            continue; // depending on 'cia_encrypt' setting: not/already encrypted
+        untouched = false;
+        if (cia_encrypt) {
+            Debug("Verifying unencrypted content...");
+            if (CheckHashFromFile(filename, offset, size, content_list + (0x30 * i) + 0x10) != 0) {
+                Debug("Verification failed!");
+                result = 1;
+                continue;
+            }
+            Debug("Verified OK!");
+        }
+        Debug("%scrypting Content %i of %i (%iMB)...", (cia_encrypt) ? "En" : "De", i + 1, content_count, size / (1024*1024));
+        memset(info.ctr, 0x00, 16);
+        memcpy(info.ctr, content_list + (0x30 * i) + 4, 2);
+        if (CryptSdToSd(filename, offset, size, &info) != 0) {
+            Debug("%scryption failed!", (cia_encrypt) ? "En" : "De");
+            result = 1;
+            continue;
+        }
+        if (!cia_encrypt) {
+            Debug("Verifying decrypted content...");
+            if (CheckHashFromFile(filename, offset, size, content_list + (0x30 * i) + 0x10) != 0) {
+                Debug("Verification failed!");
+                result = 1;
+                continue;
+            }
+            Debug("Verified OK!");
+        }
+        content_list[(0x30 * i) + 0x7] ^= 0x1;
+        n_processed++;
+    }
+    
+    if (ncch_crypt) {
+        Debug("Pass #2: NCCH decryption...");
+        next_offset = offset_content;
+        for (u32 i = 0; i < content_count; i++) {
+            u32 ncch_state;
+            u32 size = getbe32(content_list + (0x30 * i) + 0xC);
+            u32 offset = next_offset;
+            next_offset = offset + size;
+            Debug("Processing Content %i of %i (%iMB)...", i + 1, content_count, size / (1024*1024));
+            ncch_state = CryptNcch(filename, offset, size, titleId, NULL);
+            if (!(ncch_crypt[7] & 0x04) && (ncch_state != 1))
+                ncch_state = CryptNcch(filename, offset, size, titleId, ncch_crypt);
+            if (ncch_state == 0) {
+                untouched = false;
+                Debug("Recalculating hash...");
+                if (GetHashFromFile(filename, offset, size, content_list + (0x30 * i) + 0x10) != 0) {
+                    Debug("Recalculation failed!");
+                    result = 1;
+                    continue;
+                }
+            } else if (ncch_state == 1) {
+                Debug("Failed!");
+                result = 1;
+                continue;
+            }
+            n_processed++;
+        }
+        if (!untouched) {
+            // recalculate content info hashes
+            Debug("Recalculating TMD hashes...");
+            for (u32 i = 0, kc = 0; i < 64 && kc < content_count; i++) {
+                u32 k = getbe16(tmd_data + 0xC4 + (i * 0x24) + 0x02);
+                u8 chunk_hash[32];
+                sha_init(SHA256_MODE);
+                sha_update(content_list + kc * 0x30, k * 0x30);
+                sha_get(chunk_hash);
+                memcpy(tmd_data + 0xC4 + (i * 0x24) + 0x04, chunk_hash, 32);
+                kc += k;
+            }
+            u8 tmd_hash[32];
+            sha_init(SHA256_MODE);
+            sha_update(tmd_data + 0xC4, 64 * 0x24);
+            sha_get(tmd_hash);
+            memcpy(tmd_data + 0xA4, tmd_hash, 32);
+        }
+    }
+    
+    if (untouched) {
+        Debug((cia_encrypt) ? "CIA is already encrypted" : "CIA is not encrypted");
+    } else if (n_processed > 0) {
+        if (!FileOpen(filename)) // already checked this file
+            return 1;
+        if (!DebugFileWrite(buffer, size_ticktmd, offset_ticktmd))
+            result = 1;
+        FileClose();
+    }
+    
+    return result;
+}
+
 
 u32 CryptGameFiles(u32 param)
 {
@@ -705,8 +932,14 @@ u32 CryptGameFiles(u32 param)
     };
     char* batch_dir = GAME_DIR;
     u8* buffer = (u8*) 0x20316000;
+    
+    bool batch_ncch = param & GC_NCCH_PROCESS;
+    bool batch_cia = param & GC_CIA_PROCESS;
+    bool cia_encrypt = param & GC_CIA_ENCRYPT;
+    bool cxi_only = param & GC_CXI_ONLY;
     u8* ncch_crypt = (param & GC_NCCH_ENCRYPT) ? ncch_crypt_standard : NULL;
-
+    u8* cia_ncch_crypt = (param & GC_CIA_DEEP) ? ncch_crypt_none : ncch_crypt;
+    
     u32 n_processed = 0;
     u32 n_failed = 0;
     
@@ -738,7 +971,7 @@ u32 CryptGameFiles(u32 param)
         }
         FileClose();
         
-        if (memcmp(buffer + 0x100, "NCCH", 4) == 0) {
+        if (batch_ncch && (memcmp(buffer + 0x100, "NCCH", 4) == 0)) {
             Debug("Processing NCCH \"%s\"", path + path_len);
             if (CryptNcch(path, 0x00, 0, 0, ncch_crypt) != 1) {
                 Debug("Success!");
@@ -747,7 +980,7 @@ u32 CryptGameFiles(u32 param)
                 Debug("Failed!");
                 n_failed++;
             }
-        } else if (memcmp(buffer + 0x100, "NCSD", 4) == 0) {
+        } else if (batch_ncch && (memcmp(buffer + 0x100, "NCSD", 4) == 0)) {
             if (getle64(buffer + 0x110) != 0) 
                 continue; // skip NAND backup NCSDs
             Debug("Processing NCSD \"%s\"", path + path_len);
@@ -763,6 +996,15 @@ u32 CryptGameFiles(u32 param)
                     break;
             }
             if ( p == 8 ) {
+                Debug("Success!");
+                n_processed++;
+            } else {
+                Debug("Failed!");
+                n_failed++;
+            }
+        } else if (batch_cia && (memcmp(buffer, "\x20\x20", 2) == 0)) {
+            Debug("Processing CIA \"%s\"", path + path_len);
+            if (CryptCia(path, cia_ncch_crypt, cia_encrypt, (cxi_only) ? 1 : 0) == 0) {
                 Debug("Success!");
                 n_processed++;
             } else {

@@ -55,10 +55,13 @@ MenuInfo menu[] =
         }
     },
     {
-        "Game Decryptor Options", 3,
+        "Game Decryptor Options", 6,
         {
-            { "NCCH/NCSD Decryptor",          &CryptGameFiles,        false, false, 0 },
-            { "NCCH/NCSD Encryptor",          &CryptGameFiles,        false, false, GC_NCCH_ENCRYPT },
+            { "NCCH/NCSD Decryptor",          &CryptGameFiles,        false, false, GC_NCCH_PROCESS },
+            { "NCCH/NCSD Encryptor",          &CryptGameFiles,        false, false, GC_NCCH_PROCESS | GC_NCCH_ENCRYPT },
+            { "CIA Decryptor (shallow)",      &CryptGameFiles,        false, false, GC_CIA_PROCESS },
+            { "CIA Decryptor (deep)",         &CryptGameFiles,        false, false, GC_CIA_PROCESS | GC_CIA_DEEP },
+            { "CIA Decryptor (CXI only)",     &CryptGameFiles,        false, false, GC_CIA_PROCESS | GC_CIA_DEEP | GC_CXI_ONLY },
             { "SD Decryptor/Encryptor",       &CryptSdFiles,          false, false, 0 }
         }
     },

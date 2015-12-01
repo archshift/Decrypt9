@@ -35,7 +35,9 @@
 #define getle16(d) (*((u16*) (d)))
 #define getle32(d) (*((u32*) (d)))
 #define getle64(d) (*((u64*) (d)))
-
+#define align(v,a) \
+    (((v) % (a)) ? ((v) + (a) - ((v) % (a))) : (v))
+    
 // work files / directories
 #define GAME_DIR "/D9Game"
 #define WORK_DIR "/Decrypt9"

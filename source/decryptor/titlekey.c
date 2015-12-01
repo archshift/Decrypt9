@@ -20,7 +20,7 @@ static const u8 common_keyy[6][16] = {
 
 u32 DecryptTitlekey(TitleKeyEntry* entry)
 {
-    CryptBufferInfo info = {.keyslot = 0x3D, .setKeyY = 1, .size = 16, .buffer = entry->encryptedTitleKey, .mode = AES_CNT_TITLEKEY_MODE};
+    CryptBufferInfo info = {.keyslot = 0x3D, .setKeyY = 1, .size = 16, .buffer = entry->encryptedTitleKey, .mode = AES_CNT_TITLEKEY_DECRYPT_MODE};
     memset(info.ctr, 0, 16);
     memcpy(info.ctr, entry->titleId, 8);
     memcpy(info.keyY, (void *)common_keyy[entry->commonKeyIndex], 16);
