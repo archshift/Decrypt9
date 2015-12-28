@@ -12,10 +12,12 @@
 
 u32 GetSdCtr(u8* ctr, const char* path)
 {
-    // get AES counter
+    // get AES counter, see: http://www.3dbrew.org/wiki/Extdata#Encryption
+    // path is the part of the full path after //Nintendo 3DS/<ID0>/<ID1>
     u8 hashstr[256];
     u8 sha256sum[32];
     u32 plen = 0;
+    // poor man's UTF-8 -> UTF-16
     for (u32 i = 0; i < 128; i++) {
         hashstr[2*i] = path[i];
         hashstr[2*i+1] = 0;
@@ -43,7 +45,7 @@ u32 SdInfoGen(SdInfo* info)
         Debug("Failed retrieving the filelist");
     }
     
-    u32 n = 0;
+    u32 n_entries = 0;
     SdInfoEntry* entries = info->entries;
     for (char* path = strtok(filelist, "\n"); path != NULL; path = strtok(NULL, "\n")) {
         u32 plen = strnlen(path, 256);
@@ -52,32 +54,37 @@ u32 SdInfoGen(SdInfo* info)
         // get size in MB
         if (!FileOpen(path))
             continue;
-        entries[n].size_mb = (FileGetSize() + (1024 * 1024) - 1) / (1024 * 1024);
+        entries[n_entries].size_mb = (FileGetSize() + (1024 * 1024) - 1) / (1024 * 1024);
         FileClose();
         // skip to relevant part of path
-        path += 13 + 33 + 33;
+        path += 13 + 33 + 33; // length of ("/Nintendo 3DS" + "/<id0>" + "/<id1>")
         plen -= 13 + 33 + 33;
-        if ((path[0] != '/') || (plen >= 128)) continue;
+        if ((path[0] != '/') || (plen >= 128))
+            continue;
         // get filename
-        char* filename = entries[n].filename;
+        char* filename = entries[n_entries].filename;
         filename[0] = '/';
         for (u32 i = 1; i < 180 && path[i] != 0; i++)
             filename[i] = (path[i] == '/') ? '.' : path[i];
-        strcpy(filename + plen, ".xorpad");
+        strncpy(filename + plen, ".xorpad", (180 - 1) - plen);
         // get AES counter
-        GetSdCtr(entries[n].ctr, path);
+        GetSdCtr(entries[n_entries].ctr, path);
         // duplicate check
-        u32 d;
-        for (d = 0; d < n; d++)
-            if (strncmp(entries[n].filename, entries[d].filename, 180) == 0) break;
-        if (d < n) {
-            entries[d].size_mb = max(entries[d].size_mb, entries[n].size_mb);
-        } else n++;
-        if (n >= MAX_ENTRIES) break;
+        u32 entry_pos;
+        for (entry_pos = 0; entry_pos < n_entries; entry_pos++)
+            if (strncmp(entries[n_entries].filename, entries[entry_pos].filename, 180) == 0)
+                break;
+        if (entry_pos < n_entries) {
+            entries[entry_pos].size_mb = max(entries[entry_pos].size_mb, entries[n_entries].size_mb);
+        } else {
+            n_entries++;
+        }
+        if (n_entries >= MAX_ENTRIES)
+            break;
     }
-    info->n_entries = n;
+    info->n_entries = n_entries;
     
-    return (n > 0) ? 0 : 1;
+    return (n_entries > 0) ? 0 : 1;
 }
 
 u32 NcchPadgen(u32 param)
@@ -327,16 +334,21 @@ u32 UpdateSeedDb(u32 param)
     
     // search and extract seeds
     for ( int n = 0; n < 2; n++ ) {
+        // there are two offsets where seeds can be found - 0x07000 & 0x5C000
         u8* seed_data = buffer + ((n == 0) ? 0x7000 : 0x5C000);
-        for ( size_t i = 0; i < 2000; i++ ) {
+        for ( size_t i = 0; i < 2000; i++ ) { 
+            // magic number is the reversed first 4 byte of a title id
             static const u8 magic[4] = { 0x00, 0x00, 0x04, 0x00 };
+            // 2000 seed entries max, splitted into title id and seed area
             u8* titleId = seed_data + (i*8);
             u8* seed = seed_data + (2000*8) + (i*16);
-            if (memcmp(titleId + 4, magic, 4) != 0) continue;
+            if (memcmp(titleId + 4, magic, 4) != 0)
+                continue;
             // seed found, check if it already exists
             u32 entryPos = 0;
             for (entryPos = 0; entryPos < seedinfo->n_entries; entryPos++)
-                if (memcmp(titleId, &(seedinfo->entries[entryPos].titleId), 8) == 0) break;
+                if (memcmp(titleId, &(seedinfo->entries[entryPos].titleId), 8) == 0)
+                    break;
             if (entryPos < seedinfo->n_entries) {
                 Debug("Found %08X%08X seed (duplicate)", getle32(titleId + 4), getle32(titleId));
                 continue;
@@ -1094,5 +1106,5 @@ u32 CryptSdFiles(u32 param) {
         }
     }
     
-    return 0;
+    return (n_processed) ? 0 : 1;
 }

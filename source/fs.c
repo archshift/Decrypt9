@@ -187,15 +187,17 @@ bool GetFileListWorker(char** list, int* lsize, char* fpath, int fsize, bool rec
     char* fname = fpath + strnlen(fpath, fsize - 1);
     bool ret = false;
     
-    if (f_opendir(&pdir, fpath) != FR_OK) return false;
+    if (f_opendir(&pdir, fpath) != FR_OK)
+        return false;
     (fname++)[0] = '/';
     fno.lfname = fname;
     fno.lfsize = fsize - (fname - fpath);
     
     while (f_readdir(&pdir, &fno) == FR_OK) {
-        if (fno.fname[0] == '.') continue;
+        if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+            continue; // filter out virtual entries
         if (fname[0] == 0)
-            strcpy(fname, fno.fname);
+            strncpy(fname, fno.fname, (fsize - 1) - (fname - fpath));
         if (fno.fname[0] == 0) {
             ret = true;
             break;
@@ -215,7 +217,7 @@ bool GetFileListWorker(char** list, int* lsize, char* fpath, int fsize, bool rec
 
 bool GetFileList(const char* path, char* list, int lsize, bool recursive)
 {
-    char fpath[256];
+    char fpath[256]; // 256 is the maximum length of a full path
     strncpy(fpath, path, 256);
     return GetFileListWorker(&list, &lsize, fpath, 256, recursive);
 }

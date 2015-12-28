@@ -88,15 +88,15 @@ static inline int WriteNandSectors(u32 sector_no, u32 numsectors, u8 *in)
 
 PartitionInfo* GetPartitionInfo(u32 partition_id)
 {
-    u32 p = 0;
+    u32 partition_num = 0;
     
     if (partition_id == P_CTRNAND) {
-        p = (GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6;
+        partition_num = (GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6;
     } else {
-        for(; !(partition_id & (1<<p)) && (p < 32); p++);
+        for(; !(partition_id & (1<<partition_num)) && (partition_num < 32); partition_num++);
     }
     
-    return (p >= 32) ? NULL : &(partitions[p]);
+    return (partition_num >= 32) ? NULL : &(partitions[partition_num]);
 }
 
 u32 CtrNandPadgen(u32 param)
@@ -260,21 +260,21 @@ u32 DumpNand(u32 param)
     return result;
 }
 
-u32 DecryptNandPartition(PartitionInfo* p)
+u32 DecryptNandPartition(PartitionInfo* p_info)
 {
     char filename[32];
     u8 magic[NAND_SECTOR_SIZE];
     
-    Debug("Dumping & Decrypting %s, size (MB): %u", p->name, p->size / (1024 * 1024));
-    if (DecryptNandToMem(magic, p->offset, 16, p) != 0)
+    Debug("Dumping & Decrypting %s, size (MB): %u", p_info->name, p_info->size / (1024 * 1024));
+    if (DecryptNandToMem(magic, p_info->offset, 16, p_info) != 0)
         return 1;
-    if ((p->magic[0] != 0xFF) && (memcmp(p->magic, magic, 8) != 0)) {
+    if ((p_info->magic[0] != 0xFF) && (memcmp(p_info->magic, magic, 8) != 0)) {
         Debug("Decryption error, please contact us");
         return 1;
     }
-    snprintf(filename, 32, "%s.bin", p->name);
+    snprintf(filename, 32, "%s.bin", p_info->name);
     
-    return DecryptNandToFile(filename, p->offset, p->size, p);
+    return DecryptNandToFile(filename, p_info->offset, p_info->size, p_info);
 }
 
 u32 DecryptNandPartitions(u32 param)
@@ -374,25 +374,25 @@ u32 RestoreNand(u32 param)
     return result;
 }
 
-u32 InjectNandPartition(PartitionInfo* p)
+u32 InjectNandPartition(PartitionInfo* p_info)
 {
     char filename[32];
     u8 magic[NAND_SECTOR_SIZE];
     
     // File check
-    snprintf(filename, 32, "%s.bin", p->name);
+    snprintf(filename, 32, "%s.bin", p_info->name);
     if (FileOpen(filename)) {
         FileClose();
     } else {
         return 1;
     }
     
-    Debug("Encrypting & Injecting %s, size (MB): %u", p->name, p->size / (1024 * 1024));
+    Debug("Encrypting & Injecting %s, size (MB): %u", p_info->name, p_info->size / (1024 * 1024));
     
     // Encryption check
-    if (DecryptNandToMem(magic, p->offset, 16, p) != 0)
+    if (DecryptNandToMem(magic, p_info->offset, 16, p_info) != 0)
         return 1;
-    if ((p->magic[0] != 0xFF) && (memcmp(p->magic, magic, 8) != 0)) {
+    if ((p_info->magic[0] != 0xFF) && (memcmp(p_info->magic, magic, 8) != 0)) {
         Debug("Decryption error, please contact us");
         return 1;
     }
@@ -403,7 +403,7 @@ u32 InjectNandPartition(PartitionInfo* p)
             FileClose();
             return 1;
         }
-        if ((p->magic[0] != 0xFF) && (memcmp(p->magic, magic, 8) != 0)) {
+        if ((p_info->magic[0] != 0xFF) && (memcmp(p_info->magic, magic, 8) != 0)) {
             Debug("Bad file content, won't inject");
             FileClose();
             return 1;
@@ -411,7 +411,7 @@ u32 InjectNandPartition(PartitionInfo* p)
         FileClose();
     }
     
-    return EncryptFileToNand(filename, p->offset, p->size, p);
+    return EncryptFileToNand(filename, p_info->offset, p_info->size, p_info);
 }
 
 u32 InjectNandPartitions(u32 param)

@@ -19,9 +19,9 @@ NandFileInfo fileList[] = {
 
 NandFileInfo* GetNandFileInfo(u32 file_id)
 {
-    u32 f = 0;
-    for(; !(file_id & (1<<f)) && (f < 32); f++);
-    return (f >= 32) ? NULL : &(fileList[f]);
+    u32 file_num = 0;
+    for(; !(file_id & (1<<file_num)) && (file_num < 32); file_num++);
+    return (file_num >= 32) ? NULL : &(fileList[file_num]);
 }
 
 u32 SeekFileInNand(u32* offset, u32* size, const char* path, PartitionInfo* partition)
