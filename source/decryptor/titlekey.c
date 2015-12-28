@@ -1,11 +1,7 @@
-#include <string.h>
-#include <stdio.h>
-
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/features.h"
-#include "decryptor/crypto.h"
+#include "decryptor/aes.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
 #include "decryptor/nandfat.h"
@@ -24,9 +20,9 @@ static const u8 common_keyy[6][16] = {
 
 u32 DecryptTitlekey(TitleKeyEntry* entry)
 {
-    CryptBufferInfo info = {.keyslot = 0x3D, .setKeyY = 1, .size = 16, .buffer = entry->encryptedTitleKey, .mode = AES_CNT_TITLEKEY_MODE};
-    memset(info.CTR, 0, 16);
-    memcpy(info.CTR, entry->titleId, 8);
+    CryptBufferInfo info = {.keyslot = 0x3D, .setKeyY = 1, .size = 16, .buffer = entry->encryptedTitleKey, .mode = AES_CNT_TITLEKEY_DECRYPT_MODE};
+    memset(info.ctr, 0, 16);
+    memcpy(info.ctr, entry->titleId, 8);
     memcpy(info.keyY, (void *)common_keyy[entry->commonKeyIndex], 16);
     
     CryptBuffer(&info);
@@ -34,11 +30,11 @@ u32 DecryptTitlekey(TitleKeyEntry* entry)
     return 0;
 }
 
-u32 DecryptTitlekeysFile(void)
+u32 DecryptTitlekeysFile(u32 param)
 {
     EncKeysInfo *info = (EncKeysInfo*)0x20316000;
 
-    if (!DebugFileOpen("/encTitleKeys.bin"))
+    if (!DebugFileOpen("encTitleKeys.bin"))
         return 1;
     
     if (!DebugFileRead(info, 16, 0)) {
@@ -64,7 +60,7 @@ u32 DecryptTitlekeysFile(void)
     for (u32 i = 0; i < info->n_entries; i++)
         DecryptTitlekey(&(info->entries[i]));
 
-    if (!DebugFileCreate("/decTitleKeys.bin", true))
+    if (!DebugFileCreate("decTitleKeys.bin", true))
         return 1;
     if (!DebugFileWrite(info, info->n_entries * sizeof(TitleKeyEntry) + 16, 0)) {
         FileClose();
@@ -75,7 +71,7 @@ u32 DecryptTitlekeysFile(void)
     return 0;
 }
 
-u32 DecryptTitlekeysNand(void)
+u32 DecryptTitlekeysNand(u32 param)
 {
     PartitionInfo* ctrnand_info = GetPartitionInfo(P_CTRNAND);;
     u8* buffer = BUFFER_ADDRESS;
@@ -128,7 +124,7 @@ u32 DecryptTitlekeysNand(void)
     Debug("Decrypted %u unique Title Keys", nKeys);
     
     if(nKeys > 0) {
-        if (!DebugFileCreate((IsEmuNand()) ? "/decTitleKeys_emu.bin" : "/decTitleKeys.bin", true))
+        if (!DebugFileCreate((IsEmuNand()) ? "decTitleKeys_emu.bin" : "decTitleKeys.bin", true))
             return 1;
         if (!DebugFileWrite(info, 0x10 + nKeys * 0x20, 0)) {
             FileClose();

@@ -118,7 +118,7 @@
 /  f_puts and f_printf(). This option has no effect when Unicode API is not enabled. */
 
 
-#define _FS_RPATH       0   /* 0 to 2 */
+#define _FS_RPATH       1   /* 0 to 2 */
 /* The _FS_RPATH option configures relative path feature.
 /
 /   0: Disable relative path feature and remove related functions.

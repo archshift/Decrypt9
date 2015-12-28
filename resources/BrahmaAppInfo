@@ -1,3 +1,45 @@
+#---------------------------------------------------------------------------------
+# APP_TITLE: Name of the homebrew app, also name of folder and .3DSX/.SMDH
+# APP_DESCRIPTION: Description of the homebrew app in HB launcher
+# APP_AUTHOR: Author of the homebrew app, also display in HB launcher
+#
+# PAYLOAD_PATH: Path to the ARM9 payload on the 3DS SD card (don't forget "//")
+# PAYLOAD_OFFSET: Offset of the ARM9 payload in the file given above
+# PAYLOAD_MAXSIZE: Maximum size of the ARM9 payload, cannot exceed 0x100000
+#
+# PAYLOAD_MEM: If set to anything, force loading the payload from memory
+#
+# VOODOO: This may be used to boost the boot rate of a given payload, it can take
+#  values from 0x00...0x3F, experimentation is recommended, also see below
+#
+# If PAYLOAD_PATH is not given, payload is loaded from memory (data dir in source)
+# PAYLOAD_OFFSET is optional if offset is 0x00000000
+# PAYLOAD_MAXSIZE is ignored if it is zero, and shouldn't be required at all
+#---------------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------------
+# The VOODOO parameter:
+# This paramter is processed in binary (0b111111 = 0x3F = 63). Starting from the
+# right, this is what those bits do (and of course you can combine any of these
+# fixes, this is what is intended).
+# Bit 0: Load (unnecessary) HB services.
+#  0b000001/0x01 => Load them
+# Bit 1: "Magic Fix", no one (might not be absolutely correct) knows what it does,
+#  but CTR Boot Manager, BootCTR and HBL itself all use it.
+#  0b000010/0x02 => Use magic fix
+# Bit 2 and Bit 3: Set the length of the bootfix delay.
+#  0b000000/0x00 =>   0 frames
+#  0b000100/0x04 =>  50 frames
+#  0b001000/0x08 => 100 frames
+#  0b001100/0x0C => 150 frames
+# Bit 4 and Bit 5: Initialize console and print some nonsense text.
+#  0b010000/0x10 => Use this fix for the bottom screen
+#  0b100000/0x20 => Use this fix for the top screen
+#---------------------------------------------------------------------------------
+
 APP_TITLE = Decrypt9
 APP_DESCRIPTION = Xorpad generator & NAND data decryptor.
 APP_AUTHOR = Archshift & others
+
+PAYLOAD_MEM = 1
+VOODOO = 0x3

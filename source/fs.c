@@ -14,7 +14,11 @@ bool InitFS()
     *(u32*)0x10000020 = 0;
     *(u32*)0x10000020 = 0x340;
 #endif
-    return f_mount(&fs, "0:", 0) == FR_OK;
+    bool ret = (f_mount(&fs, "0:", 0) == FR_OK);
+#ifdef WORK_DIR
+    f_chdir(WORK_DIR);
+#endif
+    return ret;
 }
 
 void DeinitFS()
@@ -25,13 +29,21 @@ void DeinitFS()
 bool FileOpen(const char* path)
 {
     unsigned flags = FA_READ | FA_WRITE | FA_OPEN_EXISTING;
+    if (*path == '/')
+        path++;
     bool ret = (f_open(&file, path, flags) == FR_OK);
+    #ifdef WORK_DIR
+    f_chdir("/"); // temporarily change the current directory
+    if (!ret) ret = (f_open(&file, path, flags) == FR_OK);
+    f_chdir(WORK_DIR);
+    #endif
     f_lseek(&file, 0);
     f_sync(&file);
     return ret;
 }
 
-bool DebugFileOpen(const char* path) {
+bool DebugFileOpen(const char* path)
+{
     Debug("Opening %s ...", path);
     if (!FileOpen(path)) {
         Debug("Could not open %s!", path);
@@ -45,6 +57,8 @@ bool FileCreate(const char* path, bool truncate)
 {
     unsigned flags = FA_READ | FA_WRITE;
     flags |= truncate ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS;
+    if (*path == '/')
+        path++;
     bool ret = (f_open(&file, path, flags) == FR_OK);
     f_lseek(&file, 0);
     f_sync(&file);
@@ -88,7 +102,8 @@ size_t FileWrite(void* buf, size_t size, size_t foffset)
     return bytes_written;
 }
 
-bool DebugFileWrite(void* buf, size_t size, size_t foffset) {
+bool DebugFileWrite(void* buf, size_t size, size_t foffset)
+{
     size_t bytesWritten = FileWrite(buf, size, foffset);
     if(bytesWritten != size) {
         Debug("ERROR, SD card may be full!");
@@ -128,12 +143,12 @@ bool DebugDirMake(const char* path)
 
 bool DirOpen(const char* path)
 {
-    bool ret = (f_opendir(&dir, path) == FR_OK);
-    return ret;
+    return (f_opendir(&dir, path) == FR_OK);
 }
 
-bool DebugDirOpen(const char* path) {
-    Debug("Opening dir %s ...", path);
+bool DebugDirOpen(const char* path)
+{
+    Debug("Opening %s ...", path);
     if (!DirOpen(path)) {
         Debug("Could not open %s!", path);
         return false;
@@ -163,6 +178,48 @@ bool DirRead(char* fname, int fsize)
 void DirClose()
 {
     f_closedir(&dir);
+}
+
+bool GetFileListWorker(char** list, int* lsize, char* fpath, int fsize, bool recursive)
+{
+    DIR pdir;
+    FILINFO fno;
+    char* fname = fpath + strnlen(fpath, fsize - 1);
+    bool ret = false;
+    
+    if (f_opendir(&pdir, fpath) != FR_OK)
+        return false;
+    (fname++)[0] = '/';
+    fno.lfname = fname;
+    fno.lfsize = fsize - (fname - fpath);
+    
+    while (f_readdir(&pdir, &fno) == FR_OK) {
+        if ((strncmp(fno.fname, ".", 2) == 0) || (strncmp(fno.fname, "..", 3) == 0))
+            continue; // filter out virtual entries
+        if (fname[0] == 0)
+            strncpy(fname, fno.fname, (fsize - 1) - (fname - fpath));
+        if (fno.fname[0] == 0) {
+            ret = true;
+            break;
+        } else if (fno.fattrib & AM_DIR) {
+            if (recursive && !GetFileListWorker(list, lsize, fpath, fsize, recursive))
+                break;
+        } else {
+            snprintf(*list, *lsize, "%s\n", fpath);
+            for(;(*list)[0] != '\0' && (*lsize) > 1; (*list)++, (*lsize)--); 
+            if ((*lsize) <= 1) break;
+        }
+    }
+    f_closedir(&pdir);
+    
+    return ret;
+}
+
+bool GetFileList(const char* path, char* list, int lsize, bool recursive)
+{
+    char fpath[256]; // 256 is the maximum length of a full path
+    strncpy(fpath, path, 256);
+    return GetFileListWorker(&list, &lsize, fpath, 256, recursive);
 }
 
 static uint64_t ClustersToBytes(FATFS* fs, DWORD clusters)

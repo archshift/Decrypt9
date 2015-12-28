@@ -1,11 +1,7 @@
-#include <string.h>
-#include <stdio.h>
-
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/features.h"
-#include "decryptor/crypto.h"
+#include "decryptor/aes.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
 #include "fatfs/sdmmc.h"
@@ -92,13 +88,18 @@ static inline int WriteNandSectors(u32 sector_no, u32 numsectors, u8 *in)
 
 PartitionInfo* GetPartitionInfo(u32 partition_id)
 {
-    if (partition_id == P_CTRNAND)
-        return &(partitions[(GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6]);
+    u32 partition_num = 0;
     
-    return &(partitions[partition_id]);
+    if (partition_id == P_CTRNAND) {
+        partition_num = (GetUnitPlatform() == PLATFORM_3DS) ? 5 : 6;
+    } else {
+        for(; !(partition_id & (1<<partition_num)) && (partition_num < 32); partition_num++);
+    }
+    
+    return (partition_num >= 32) ? NULL : &(partitions[partition_num]);
 }
 
-u32 CtrNandPadgen()
+u32 CtrNandPadgen(u32 param)
 {
     u32 keyslot;
     u32 nand_size;
@@ -115,13 +116,13 @@ u32 CtrNandPadgen()
     Debug("Filename: nand.fat16.xorpad");
 
     PadInfo padInfo = {.keyslot = keyslot, .setKeyY = 0, .size_mb = nand_size, .filename = "nand.fat16.xorpad", .mode = AES_CNT_CTRNAND_MODE};
-    if(GetNandCtr(padInfo.CTR, 0xB930000) != 0)
+    if(GetNandCtr(padInfo.ctr, 0xB930000) != 0)
         return 1;
 
     return CreatePad(&padInfo);
 }
 
-u32 TwlNandPadgen()
+u32 TwlNandPadgen(u32 param)
 {
     u32 size_mb = (partitions[0].size + (1024 * 1024) - 1) / (1024 * 1024);
     Debug("Creating TWLNAND FAT16 xorpad. Size (MB): %u", size_mb);
@@ -133,7 +134,7 @@ u32 TwlNandPadgen()
         .size_mb = size_mb,
         .filename = "twlnand.fat16.xorpad",
         .mode = AES_CNT_TWLNAND_MODE};
-    if(GetNandCtr(padInfo.CTR, partitions[0].offset) != 0)
+    if(GetNandCtr(padInfo.ctr, partitions[0].offset) != 0)
         return 1;
 
     return CreatePad(&padInfo);
@@ -166,19 +167,19 @@ u32 GetNandCtr(u8* ctr, u32 offset)
             for (u8* c = (u8*) 0x080D8FFF; c > (u8*) 0x08000000; c--) {
                 if (*(u32*)c == 0x5C980 && *(u32*)(c + 1) == 0x800005C9) {
                     ctr_start = c + 0x30;
-                    Debug("CTR Start 0x%08X", ctr_start);
+                    Debug("CTR start 0x%08X", ctr_start);
                     break;
                 }
             }
         }
         
         if (ctr_start == NULL) {
-            Debug("CTR Start not found!");
+            Debug("CTR start not found!");
             return 1;
         }
     }
     
-    // the CTR is stored backwards in memory
+    // the ctr is stored backwards in memory
     if (offset >= 0x0B100000) { // CTRNAND/AGBSAVE region
         for (u32 i = 0; i < 16; i++)
             ctr[i] = *(ctr_start + (0xF - i));
@@ -192,10 +193,11 @@ u32 GetNandCtr(u8* ctr, u32 offset)
 
     return 0;
 }
+
 u32 DecryptNandToMem(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 {
     CryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer, .mode = partition->mode};
-    if(GetNandCtr(info.CTR, offset) != 0)
+    if(GetNandCtr(info.ctr, offset) != 0)
         return 1;
 
     u32 n_sectors = (size + NAND_SECTOR_SIZE - 1) / NAND_SECTOR_SIZE;
@@ -230,24 +232,23 @@ u32 DecryptNandToFile(const char* filename, u32 offset, u32 size, PartitionInfo*
     return result;
 }
 
-
-
-u32 DumpNand()
+u32 DumpNand(u32 param)
 {
     u8* buffer = BUFFER_ADDRESS;
-    u32 nand_size = getMMCDevice(0)->total_size * 0x200;
+    u32 nand_size = getMMCDevice(0)->total_size * NAND_SECTOR_SIZE;
     u32 result = 0;
 
     Debug("Dumping System NAND. Size (MB): %u", nand_size / (1024 * 1024));
 
-    if (!DebugFileCreate("/NAND.bin", true))
+    if (!DebugFileCreate((IsEmuNand()) ? "EmuNAND.bin" : "NAND.bin", true))
         return 1;
 
     u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        u32 read_sectors = min(SECTORS_PER_READ, (n_sectors - i));
         ShowProgress(i, n_sectors);
-        ReadNandSectors(i, SECTORS_PER_READ, buffer);
-        if(!DebugFileWrite(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE)) {
+        ReadNandSectors(i, read_sectors, buffer);
+        if(!DebugFileWrite(buffer, NAND_SECTOR_SIZE * read_sectors, i * NAND_SECTOR_SIZE)) {
             result = 1;
             break;
         }
@@ -259,43 +260,37 @@ u32 DumpNand()
     return result;
 }
 
-u32 DecryptNandPartition(PartitionInfo* p) {
+u32 DecryptNandPartition(PartitionInfo* p_info)
+{
     char filename[32];
     u8 magic[NAND_SECTOR_SIZE];
     
-    Debug("Dumping & Decrypting %s, size (MB): %u", p->name, p->size / (1024 * 1024));
-    if (DecryptNandToMem(magic, p->offset, 16, p) != 0)
+    Debug("Dumping & Decrypting %s, size (MB): %u", p_info->name, p_info->size / (1024 * 1024));
+    if (DecryptNandToMem(magic, p_info->offset, 16, p_info) != 0)
         return 1;
-    if ((p->magic[0] != 0xFF) && (memcmp(p->magic, magic, 8) != 0)) {
+    if ((p_info->magic[0] != 0xFF) && (memcmp(p_info->magic, magic, 8) != 0)) {
         Debug("Decryption error, please contact us");
         return 1;
     }
-    snprintf(filename, 32, "/%s.bin", p->name);
+    snprintf(filename, 32, "%s.bin", p_info->name);
     
-    return DecryptNandToFile(filename, p->offset, p->size, p);
+    return DecryptNandToFile(filename, p_info->offset, p_info->size, p_info);
 }
 
-u32 DecryptAllNandPartitions() {
+u32 DecryptNandPartitions(u32 param)
+{
     u32 result = 0;
     
-    for (u32 partition_id = 0; partition_id < 6; partition_id++)
-        result |= DecryptNandPartition(GetPartitionInfo(partition_id));
+    for (u32 partition_id = P_TWLN; partition_id <= P_CTRNAND; partition_id = partition_id << 1)
+        result |= (param & partition_id) ? DecryptNandPartition(GetPartitionInfo(partition_id)) : 0;
     
     return result;
-}
-
-u32 DecryptTwlNandPartition() {
-    return DecryptNandPartition(GetPartitionInfo(P_TWLN)); // TWLN
-}
-    
-u32 DecryptCtrNandPartition() {
-    return DecryptNandPartition(GetPartitionInfo(P_CTRNAND)); // CTRNAND O3DS / N3DS
 }
 
 u32 EncryptMemToNand(u8* buffer, u32 offset, u32 size, PartitionInfo* partition)
 {
     CryptBufferInfo info = {.keyslot = partition->keyslot, .setKeyY = 0, .size = size, .buffer = buffer, .mode = partition->mode};
-    if(GetNandCtr(info.CTR, offset) != 0)
+    if(GetNandCtr(info.ctr, offset) != 0)
         return 1;
 
     u32 n_sectors = (size + NAND_SECTOR_SIZE - 1) / NAND_SECTOR_SIZE;
@@ -336,30 +331,41 @@ u32 EncryptFileToNand(const char* filename, u32 offset, u32 size, PartitionInfo*
     return result;
 }
 
-u32 RestoreNand()
+u32 RestoreNand(u32 param)
 {
     u8* buffer = BUFFER_ADDRESS;
-    u32 nand_size = getMMCDevice(0)->total_size * 0x200;
+    u32 nand_size = getMMCDevice(0)->total_size * NAND_SECTOR_SIZE;
     u32 result = 0;
+    u8 magic[4];
 
-    if (!DebugFileOpen("/NAND.bin"))
+    if (IsEmuNand()) {
+        if (!DebugFileOpen("EmuNAND.bin") && !DebugFileOpen("NAND.bin"))
+            return 1;
+    } else if (!DebugFileOpen("NAND.bin"))
         return 1;
     if (nand_size != FileGetSize()) {
         FileClose();
         Debug("NAND backup has the wrong size!");
         return 1;
     };
+    if(!DebugFileRead(magic, 4, 0x100))
+        return 1;
+    if (memcmp(magic, "NCSD", 4) != 0) {
+        Debug("Not a proper NAND backup!");
+        return 1;
+    }
     
     Debug("Restoring System NAND. Size (MB): %u", nand_size / (1024 * 1024));
 
     u32 n_sectors = nand_size / NAND_SECTOR_SIZE;
     for (u32 i = 0; i < n_sectors; i += SECTORS_PER_READ) {
+        u32 read_sectors = min(SECTORS_PER_READ, (n_sectors - i));
         ShowProgress(i, n_sectors);
-        if(!DebugFileRead(buffer, NAND_SECTOR_SIZE * SECTORS_PER_READ, i * NAND_SECTOR_SIZE)) {
+        if(!DebugFileRead(buffer, NAND_SECTOR_SIZE * read_sectors, i * NAND_SECTOR_SIZE)) {
             result = 1;
             break;
         }
-        WriteNandSectors(i, SECTORS_PER_READ, buffer);
+        WriteNandSectors(i, read_sectors, buffer);
     }
 
     ShowProgress(0, 0);
@@ -368,24 +374,25 @@ u32 RestoreNand()
     return result;
 }
 
-u32 InjectNandPartition(PartitionInfo* p) {
+u32 InjectNandPartition(PartitionInfo* p_info)
+{
     char filename[32];
     u8 magic[NAND_SECTOR_SIZE];
     
     // File check
-    snprintf(filename, 32, "/%s.bin", p->name);
+    snprintf(filename, 32, "%s.bin", p_info->name);
     if (FileOpen(filename)) {
         FileClose();
     } else {
         return 1;
     }
     
-    Debug("Encrypting & Injecting %s, size (MB): %u", p->name, p->size / (1024 * 1024));
+    Debug("Encrypting & Injecting %s, size (MB): %u", p_info->name, p_info->size / (1024 * 1024));
     
     // Encryption check
-    if (DecryptNandToMem(magic, p->offset, 16, p) != 0)
+    if (DecryptNandToMem(magic, p_info->offset, 16, p_info) != 0)
         return 1;
-    if ((p->magic[0] != 0xFF) && (memcmp(p->magic, magic, 8) != 0)) {
+    if ((p_info->magic[0] != 0xFF) && (memcmp(p_info->magic, magic, 8) != 0)) {
         Debug("Decryption error, please contact us");
         return 1;
     }
@@ -396,7 +403,7 @@ u32 InjectNandPartition(PartitionInfo* p) {
             FileClose();
             return 1;
         }
-        if ((p->magic[0] != 0xFF) && (memcmp(p->magic, magic, 8) != 0)) {
+        if ((p_info->magic[0] != 0xFF) && (memcmp(p_info->magic, magic, 8) != 0)) {
             Debug("Bad file content, won't inject");
             FileClose();
             return 1;
@@ -404,22 +411,15 @@ u32 InjectNandPartition(PartitionInfo* p) {
         FileClose();
     }
     
-    return EncryptFileToNand(filename, p->offset, p->size, p);
+    return EncryptFileToNand(filename, p_info->offset, p_info->size, p_info);
 }
 
-u32 InjectAllNandPartitions() {
+u32 InjectNandPartitions(u32 param)
+{
     u32 result = 1;
     
-    for (u32 partition_id = 0; partition_id < 6; partition_id++)
-        result &= InjectNandPartition(GetPartitionInfo(partition_id));
+    for (u32 partition_id = P_TWLN; partition_id <= P_CTRNAND; partition_id = partition_id << 1)
+        result &= (param & partition_id) ? InjectNandPartition(GetPartitionInfo(partition_id)) : 1;
     
     return result;
-}
-
-u32 InjectTwlNandPartition() {
-    return InjectNandPartition(GetPartitionInfo(P_TWLN)); // TWLN
-}
-
-u32 InjectCtrNandPartition() {
-    return InjectNandPartition(GetPartitionInfo(P_CTRNAND)); // CTRNAND O3DS / N3DS
 }

@@ -2,10 +2,6 @@
 
 #include "common.h"
 
-#define AES_BIG_INPUT      1
-#define AES_LITTLE_INPUT   0
-#define AES_NORMAL_INPUT   4
-#define AES_REVERSED_INPUT 0
 #define AES_BLOCK_SIZE 0x10
 
 #define AES_CCM_DECRYPT_MODE (0 << 27)
@@ -23,8 +19,9 @@
 #define REG_AESKEYSEL  ((volatile u8 *)0x10009010)
 #define REG_AESKEYCNT  ((volatile u8 *)0x10009011)
 #define REG_AESCTR     ((volatile u32*)0x10009020)
-#define REG_AESKEYFIFO ((volatile u32*)0x10009108)
+#define REG_AESKEYFIFO ((volatile u32*)0x10009100)
 #define REG_AESKEYXFIFO ((volatile u32*)0x10009104)
+#define REG_AESKEYYFIFO ((volatile u32*)0x10009108)
 
 #define AES_CNT_START         0x80000000
 #define AES_CNT_INPUT_ORDER   0x02000000
@@ -36,15 +33,17 @@
 
 #define AES_CNT_CTRNAND_MODE (AES_CTR_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
 #define AES_CNT_TWLNAND_MODE AES_CTR_MODE
-#define AES_CNT_TITLEKEY_MODE (AES_CBC_DECRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
+#define AES_CNT_TITLEKEY_DECRYPT_MODE (AES_CBC_DECRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
+#define AES_CNT_TITLEKEY_ENCRYPT_MODE (AES_CBC_ENCRYPT_MODE | AES_CNT_INPUT_ORDER | AES_CNT_OUTPUT_ORDER | AES_CNT_INPUT_ENDIAN | AES_CNT_OUTPUT_ENDIAN)
 
-void add_ctr(void* ctr, u32 carry);
 
 void setup_aeskeyX(u8 keyslot, void* keyx);
-void setup_aeskey(u32 keyno, int value, void* key);
+void setup_aeskeyY(u8 keyslot, void* keyy);
+void setup_aeskey(u8 keyslot, void* keyy);
 void use_aeskey(u32 keyno);
 void set_ctr(void* iv);
-void aes_decrypt(void* inbuf, void* outbuf, void* iv, size_t size, u32 mode);
+void add_ctr(void* ctr, u32 carry);
+void aes_decrypt(void* inbuf, void* outbuf, size_t size, u32 mode);
 void aes_fifos(void* inbuf, void* outbuf, size_t blocks);
 void set_aeswrfifo(u32 value);
 u32 read_aesrdfifo(void);

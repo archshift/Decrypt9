@@ -3,6 +3,13 @@
 #include "common.h"
 #include "decryptor/decryptor.h"
 
+#define GC_NCCH_PROCESS (1<<0)
+#define GC_CIA_PROCESS  (1<<1)
+#define GC_CIA_DEEP     (1<<2)
+#define GC_NCCH_ENCRYPT (1<<3)
+#define GC_CIA_ENCRYPT  (1<<4)
+#define GC_CXI_ONLY     (1<<5)
+
 #define MAX_ENTRIES 1024
 
 typedef struct {
@@ -18,7 +25,7 @@ typedef struct {
 } __attribute__((packed)) SeedInfo;
 
 typedef struct {
-    u8   CTR[16];
+    u8   ctr[16];
     u32  size_mb;
     char filename[180];
 } __attribute__((packed)) SdInfoEntry;
@@ -29,7 +36,7 @@ typedef struct {
 } __attribute__((packed, aligned(16))) SdInfo;
 
 typedef struct {
-    u8   CTR[16];
+    u8   ctr[16];
     u8   keyY[16];
     u32  size_mb;
     u8   reserved[4];
@@ -80,6 +87,17 @@ typedef struct {
 } __attribute__((packed, aligned(16))) NcchHeader;
 
 
-u32 DecryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info);
-u32 CheckHash(const char* filename, u32 offset, u32 size, u8* hash);
-u32 DecryptNcch(const char* filename, u32 offset);
+u32 GetSdCtr(u8* ctr, const char* path);
+u32 SdInfoGen(SdInfo* info);
+u32 CryptSdToSd(const char* filename, u32 offset, u32 size, CryptBufferInfo* info);
+u32 GetHashFromFile(const char* filename, u32 offset, u32 size, u8* hash);
+u32 CheckHashFromFile(const char* filename, u32 offset, u32 size, u8* hash);
+u32 CryptNcch(const char* filename, u32 offset, u32 size, u64 seedId, u8* encrypt_flags);
+u32 CryptCia(const char* filename, u8* ncch_crypt, bool cia_encrypt, bool cxi_only);
+
+// --> FEATURE FUNCTIONS <--
+u32 NcchPadgen(u32 param);
+u32 SdPadgen(u32 param);
+u32 UpdateSeedDb(u32 param);
+u32 CryptGameFiles(u32 param);
+u32 CryptSdFiles(u32 param);
