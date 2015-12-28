@@ -1,7 +1,7 @@
 #include "fs.h"
 #include "draw.h"
 #include "decryptor/decryptor.h"
-#include "decryptor/crypto.h"
+#include "decryptor/aes.h"
 
 
 u32 CryptBuffer(CryptBufferInfo *info)

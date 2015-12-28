@@ -1,7 +1,7 @@
 #include "fs.h"
 #include "draw.h"
 #include "platform.h"
-#include "decryptor/crypto.h"
+#include "decryptor/aes.h"
 #include "decryptor/decryptor.h"
 #include "decryptor/nand.h"
 #include "decryptor/nandfat.h"
