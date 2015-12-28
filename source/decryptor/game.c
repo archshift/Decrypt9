@@ -945,17 +945,11 @@ u32 CryptGameFiles(u32 param)
     u32 n_failed = 0;
     
     if (!DebugDirOpen(batch_dir)) {
-        #ifdef WORK_DIR
-        Debug("Trying %s/ instead...", WORK_DIR);
         if (!DebugDirOpen(WORK_DIR)) {
             Debug("No working directory found!");
             return 1;
         }
         batch_dir = WORK_DIR;
-        #else
-        Debug("Files to process go to %s/!", batch_dir);
-        return 1;
-        #endif
     }
     
     char path[256];
@@ -1035,17 +1029,11 @@ u32 CryptSdFiles(u32 param) {
     u32 plen = 0;
     
     if (!DebugDirOpen(batch_dir)) {
-        #ifdef WORK_DIR
-        Debug("Trying %s/ instead...", WORK_DIR);
         if (!DebugDirOpen(WORK_DIR)) {
             Debug("No working directory found!");
             return 1;
         }
         batch_dir = WORK_DIR;
-        #else
-        Debug("Folders to decrypt go to %s/!", batch_dir);
-        return 1;
-        #endif
     }
     DirClose();
     plen = strnlen(batch_dir, 128);

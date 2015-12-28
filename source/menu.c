@@ -43,12 +43,10 @@ void DrawMenu(MenuInfo* currMenu, u32 index, bool fullDraw, bool subMenu)
         DrawStringF(menublock_x0, menublock_y1 + 30, top_screen, "START:  Reboot");
         DrawStringF(menublock_x1, SCREEN_HEIGHT - 20, top_screen, "Remaining SD storage space: %llu MiB", RemainingStorageSpace() / 1024 / 1024);
         DrawStringF(menublock_x1, SCREEN_HEIGHT - 30, top_screen, "Game directory: %s", GAME_DIR);
-        #ifdef WORK_DIR
         if (DirOpen(WORK_DIR)) {
             DrawStringF(menublock_x1, SCREEN_HEIGHT - 40, top_screen, "Work directory: %s", WORK_DIR);
             DirClose();
         }
-        #endif
     }
     
     if (!top_screen)

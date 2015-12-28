@@ -14,7 +14,11 @@ bool InitFS()
     *(u32*)0x10000020 = 0;
     *(u32*)0x10000020 = 0x340;
 #endif
-    return f_mount(&fs, "0:", 0) == FR_OK;
+    bool ret = (f_mount(&fs, "0:", 0) == FR_OK);
+#ifdef WORK_DIR
+    f_chdir(WORK_DIR);
+#endif
+    return ret;
 }
 
 void DeinitFS()
@@ -25,14 +29,13 @@ void DeinitFS()
 bool FileOpen(const char* path)
 {
     unsigned flags = FA_READ | FA_WRITE | FA_OPEN_EXISTING;
+    if (*path == '/')
+        path++;
+    bool ret = (f_open(&file, path, flags) == FR_OK);
     #ifdef WORK_DIR
-    if (*path == '/' || *path == '\\') path++;
-    f_chdir(WORK_DIR);
-    bool ret = (f_open(&file, path, flags) == FR_OK);
-    f_chdir("/");
+    f_chdir("/"); // temporarily change the current directory
     if (!ret) ret = (f_open(&file, path, flags) == FR_OK);
-    #else
-    bool ret = (f_open(&file, path, flags) == FR_OK);
+    f_chdir(WORK_DIR);
     #endif
     f_lseek(&file, 0);
     f_sync(&file);
@@ -54,14 +57,9 @@ bool FileCreate(const char* path, bool truncate)
 {
     unsigned flags = FA_READ | FA_WRITE;
     flags |= truncate ? FA_CREATE_ALWAYS : FA_OPEN_ALWAYS;
-    #ifdef WORK_DIR
-    if (*path == '/' || *path == '\\') path++;
-    f_chdir(WORK_DIR);
+    if (*path == '/')
+        path++;
     bool ret = (f_open(&file, path, flags) == FR_OK);
-    f_chdir("/");
-    #else
-    bool ret = (f_open(&file, path, flags) == FR_OK);
-    #endif
     f_lseek(&file, 0);
     f_sync(&file);
     return ret;
