@@ -1,11 +1,4 @@
-[submodule "CakeHax"]
-	path = CakeHax
-	url = https://github.com/mid-kid/CakeHax
-[submodule "BrahmaLoader"]
-	path = BrahmaLoader
+[submodule "externals/BrahmaLoader"]
+	path = externals/BrahmaLoader
 	url = https://github.com/d0k3/BrahmaLoader
-	ignore = dirty
-[submodule "CakesROP"]
-	path = CakesROP
-	url = https://github.com/mid-kid/CakesROP
-	ignore = dirty
+    ignore = dirty

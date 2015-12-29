@@ -3,11 +3,13 @@
 
 ### Download
 
-[Nightly builds](http://builds.archshift.com/decrypt9/nightly) (sort by date)
+[Nightly builds](http://builds.archshift.com/decrypt9/nightly)
 
 ## Generating xorpads for encrypted files
 
-First build by running `make` in the project root. By default, it will build the browser version of Decrypt9. If you'd like to build for use with brahma or bootstrap, run `make bootstrap` instead.
+You can build Decrypt9 by using `./build.sh` in the root folder. You need DevkitARM to build.
+
+Binaries can then be found in the `build/source` folder.
 
 ### Decrypting gamecart dumps
 
