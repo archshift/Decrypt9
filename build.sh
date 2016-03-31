@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 set -euo pipefail
 SCRIPT_PATH=$(dirname `which $0`)
 
