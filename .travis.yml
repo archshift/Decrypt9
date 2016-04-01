@@ -1,12 +1,18 @@
+sudo: required
+dist: trusty
+
 language: c
 
 before_install:
   - wget http://sourceforge.net/projects/devkitpro/files/Automated%20Installer/devkitARMupdate.pl
   - export DEVKITPRO=/home/travis/devkitPro
   - export DEVKITARM=${DEVKITPRO}/devkitARM
+  - wget http://www.cmake.org/files/v3.1/cmake-3.1.0-Linux-x86_64.tar.gz
 
 install:
   - sudo perl devkitARMupdate.pl
+  - tar -xvf cmake-3.1.0-Linux-x86_64.tar.gz
+  - export PATH="$PWD/cmake-3.1.0-Linux-x86_64/bin/:$PATH"
 
 script:
   - git submodule update --init --recursive

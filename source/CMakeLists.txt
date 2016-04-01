@@ -85,17 +85,17 @@ if(DECRYPT9_LOADER_BRAHMA2_STANDALONE)
         COMMAND ${CMAKE_SOURCE_DIR}/externals/brahma-loader-build.sh
             "${CMAKE_CURRENT_BINARY_DIR}" ${TARGET_NAME_BS} "${CMAKE_SOURCE_DIR}/resources/BrahmaAppInfo"
         DEPENDS ${TARGET_NAME_BS}.bin VERBATIM)
-    add_custom_target(decrypt9_3dsx ALL SOURCES ${BRAHMA2_APP_OUTPUT})
+    add_custom_target(decrypt9-brahma2 ALL SOURCES ${BRAHMA2_APP_OUTPUT})
 endif()
 
 if(EXEC_BS)
     set(LD_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/loader-bs/bootstrap.ld")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-T'${LD_FILE_PATH}'")
-    add_output_bin(decrypt9-bs EXEC_BOOTSTRAP ${SOURCE_FILES} ${HEADER_FILES} ${BS_SOURCE_FILES})
+    add_output_bin(${TARGET_NAME_BS} EXEC_BOOTSTRAP ${SOURCE_FILES} ${HEADER_FILES} ${BS_SOURCE_FILES})
 endif()
 
 if(EXEC_GW)
     set(LD_FILE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/loader-gw/gateway.ld")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,-T'${LD_FILE_PATH}'")
-    add_output_bin(decrypt9-gw EXEC_GATEWAY ${SOURCE_FILES} ${HEADER_FILES} ${GW_SOURCE_FILES})
+    add_output_bin(${TARGET_NAME_GW} EXEC_GATEWAY ${SOURCE_FILES} ${HEADER_FILES} ${GW_SOURCE_FILES})
 endif()
