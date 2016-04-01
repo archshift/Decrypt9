@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-SCRIPT_PATH=$(dirname `which $0`)
+SCRIPT_PATH="$(cd "$(dirname "$0")" && pwd)"
 
 TARGET_DIR="$1"
 TARGET_NAME="$2"
