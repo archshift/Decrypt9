@@ -58,7 +58,9 @@ set(TARGET_NAME_GW decrypt9-gw)
 
 function(add_output_bin TARGET_NAME TARGET_DEFINITION)
     add_executable(${TARGET_NAME} ${ARGN})
+    target_link_libraries(${TARGET_NAME} ncx_mempool)
     set_property(TARGET ${TARGET_NAME} APPEND PROPERTY COMPILE_DEFINITIONS ${TARGET_DEFINITION})
+
     add_custom_command(OUTPUT ${TARGET_NAME}.bin
         COMMAND ${DKA_OBJCOPY} --set-section-flags .bss=alloc,load,contents -O binary
             $<TARGET_FILE:${TARGET_NAME}> ${TARGET_NAME}.bin

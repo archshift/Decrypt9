@@ -2,3 +2,6 @@
 	path = externals/BrahmaLoader
 	url = https://github.com/d0k3/BrahmaLoader
     ignore = dirty
+[submodule "externals/ncx_mempool/ncx_mempool"]
+	path = externals/ncx_mempool/ncx_mempool
+	url = https://github.com/dcshi/ncx_mempool
