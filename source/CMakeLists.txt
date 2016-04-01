@@ -15,6 +15,7 @@ set(SOURCE_FILES
     fatfs/ff.c
     fatfs/sdmmc.c
     fs.c
+    heap.c
     hid.c
     i2c.c
     main.c
@@ -40,6 +41,7 @@ set(HEADER_FILES
     fatfs/sdmmc.h
     font.h
     fs.h
+    heap.h
     hid.h
     i2c.h
     menu.h

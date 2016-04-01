@@ -1,10 +1,11 @@
 #ifdef EXEC_BOOTSTRAP
 
 .section ".init"
-.global _start
-.extern main
 .align 4
 .arm
+
+.extern main
+.extern __stack_top
 
 #define SIZE_32KB  0b01110
 #define SIZE_128KB 0b10000
@@ -19,12 +20,15 @@
     (((offset) >> 12 << 12) | ((size_enum) << 1) | 1)
 
 
+.global _start
 _start:
     b _init
 
-    @ required, don't move :)
-    @ will be set to FIRM ARM9 entry point by BRAHMA
-    arm9ep_backup:  .long 0xFFFF0000
+@ required, don't move :)
+@ will be set to FIRM ARM9 entry point by BRAHMA
+arm9ep_backup:  .long 0xFFFF0000
+
+.pool
 
 _mpu_partition_table:
     .word MAKE_PARTITION(0x00000000, SIZE_4GB)   @ 0: Background region
@@ -90,6 +94,8 @@ _enable_caches:
 
 _init:
     push {r0-r12, lr}
+
+    ldr sp, =__stack_top
 
     bl _enable_caches
     bl main

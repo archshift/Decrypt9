@@ -7,9 +7,11 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-#include "font.h"
 #include "draw.h"
+#include "heap.h"
+#include "font.h"
 #include "fs.h"
+
 #define STD_COLOR_BG   COLOR_BLACK
 #define STD_COLOR_FONT COLOR_WHITE
 
@@ -98,16 +100,14 @@ void DrawStringF(int x, int y, bool use_top, const char *format, ...)
 
 void Screenshot(const char* path)
 {
-    u8* buffer = (u8*) 0x21000000; // careful, this area is used by other functions in Decrypt9
-    u8* buffer_t = buffer + (400 * 240 * 3);
-    u8 bmp_header[54] = {
+    static const u8 bmp_header[54] = {
         0x42, 0x4D, 0x36, 0xCA, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x00, 0x00, 0x00, 0x28, 0x00,
         0x00, 0x00, 0x90, 0x01, 0x00, 0x00, 0xE0, 0x01, 0x00, 0x00, 0x01, 0x00, 0x18, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0xCA, 0x08, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x12, 0x0B, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00
     };
     static u32 n = 0;
-    
+
     if (path == NULL) {
         for (; n < 1000; n++) {
             char filename[16];
@@ -123,7 +123,10 @@ void Screenshot(const char* path)
     } else {
         FileCreate(path, true);
     }
-    
+
+    u8* buffer = MemAlloc(400 * 240 * 3 * 2);
+    u8* buffer_t = buffer + (400 * 240 * 3);
+
     memset(buffer, 0x1F, 400 * 240 * 3 * 2);
     for (u32 x = 0; x < 400; x++)
         for (u32 y = 0; y < 240; y++)
@@ -133,6 +136,8 @@ void Screenshot(const char* path)
             memcpy(buffer + (y*400 + x + 40) * 3, BOT_SCREEN0 + (x*240 + y) * 3, 3);
     FileWrite(bmp_header, 54, 0);
     FileWrite(buffer, 400 * 240 * 3 * 2, 54);
+
+    MemFree(buffer);
     FileClose();
 }
 
@@ -147,14 +152,14 @@ void Debug(const char *format, ...)
 {
     char tempstr[DBG_N_CHARS_X] = { 0 };
     va_list va;
-    
+
     va_start(va, format);
     vsnprintf(tempstr, DBG_N_CHARS_X, format, va);
     va_end(va);
-    
+
     memmove(debugstr + DBG_N_CHARS_X, debugstr, DBG_N_CHARS_X * (DBG_N_CHARS_Y - 1));
     snprintf(debugstr, DBG_N_CHARS_X, "%-*.*s", DBG_N_CHARS_X - 1, DBG_N_CHARS_X - 1, tempstr);
-    
+
     int pos_y = DBG_START_Y;
     for (char* str = debugstr + (DBG_N_CHARS_X * (DBG_N_CHARS_Y - 1)); str >= debugstr; str -= DBG_N_CHARS_X) {
         if (str[0] != '\0') {
@@ -169,7 +174,7 @@ void ShowProgress(u64 current, u64 total)
 {
     const u32 progX = SCREEN_WIDTH_TOP - 40;
     const u32 progY = SCREEN_HEIGHT - 20;
-    
+
     if (total > 0) {
         char progStr[8];
         snprintf(progStr, 8, "%3llu%%", (current * 100) / total);
